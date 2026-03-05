@@ -1,3 +1,7 @@
+import os
+# Work around tensorboard_logger + protobuf 4+ incompatibility (Descriptors cannot be created directly)
+os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+
 import pytz
 import argparse
 import pprint as pp

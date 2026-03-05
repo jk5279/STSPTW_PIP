@@ -38,6 +38,8 @@ fi
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
 export PYTHONPATH="${PROJECT_DIR}:${PYTHONPATH:-}"
 export STOCHASTIC="${STOCHASTIC:-0}"
+# Work around tensorboard_logger + protobuf 4+ incompatibility
+export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 
 echo "=========================================="
 echo "S-PIP n=10 job — Node: $(hostname) JobId: ${SLURM_JOB_ID:-N/A}"

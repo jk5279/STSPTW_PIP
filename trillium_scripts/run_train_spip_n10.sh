@@ -11,8 +11,10 @@ REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 PIPO_DIR="${REPO_DIR}/POMO+PIP"
 
 DATA_DIR="${REPO_DIR}/data"
+# Hardness level: easy / medium / hard (default: hard)
+HARDNESS="${HARDNESS:-hard}"
 # Validation file: generate_data with TSPTW_SPIP writes to TSPTW/ (env.problem = "TSPTW")
-VAL_DATA_FILE="${DATA_DIR}/TSPTW/tsptw10_hard.pkl"
+VAL_DATA_FILE="${DATA_DIR}/TSPTW/tsptw10_${HARDNESS}.pkl"
 LOG_BASE="${REPO_DIR}/POMO+PIP/results"
 SAVED_MODELS_BASE="${REPO_DIR}/POMO+PIP/saved_models"
 
@@ -42,6 +44,8 @@ PROBLEM_SIZE=10
 GEN_SAMPLES=$((VAL_EPISODES + 10))
 
 [[ ":${PYTHONPATH:-}:" != *":${REPO_DIR}:"* ]] && export PYTHONPATH="${REPO_DIR}:${PYTHONPATH:-}"
+# Work around tensorboard_logger + protobuf 4+ incompatibility (Descriptors cannot be created directly)
+export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 cd "$PIPO_DIR"
 
 echo "=========================================="
@@ -49,6 +53,7 @@ echo "S-PIP TSPTW n=10 — deterministic=$([ "$STOCHASTIC" = "1" ] && echo "no" 
 echo "=========================================="
 echo ">> REPO_DIR=$REPO_DIR"
 echo ">> PIPO_DIR=$PIPO_DIR"
+echo ">> HARDNESS=$HARDNESS"
 echo ">> LOG_SUBDIR=$LOG_SUBDIR"
 echo "=========================================="
 
@@ -58,7 +63,7 @@ echo ">> Generating validation data..."
 if [ -f "$VAL_DATA_FILE" ]; then
   echo ">> Validation data exists, skipping generation"
 else
-  python generate_data.py --problem TSPTW_SPIP --problem_size "$PROBLEM_SIZE" --hardness hard \
+  python generate_data.py --problem TSPTW_SPIP --problem_size "$PROBLEM_SIZE" --hardness "$HARDNESS" \
     --num_samples "$GEN_SAMPLES" --dir "$DATA_DIR"
 fi
 
@@ -67,7 +72,7 @@ echo ">> Starting S-PIP training..."
 TRAIN_OPTS=(
   --problem TSPTW_SPIP
   --problem_size "$PROBLEM_SIZE"
-  --hardness hard
+  --hardness "$HARDNESS"
   --epochs "$EPOCHS"
   --train_episodes "$TRAIN_EPISODES"
   --val_episodes "$VAL_EPISODES"
