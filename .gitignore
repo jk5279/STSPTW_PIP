@@ -1,0 +1,2 @@
+# Account-specific SLURM script (do not commit account name)
+trillium_scripts/run_spip_n10_cglee.slurm

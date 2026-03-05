@@ -1,12 +1,12 @@
 #!/bin/bash
 # Setup script for STSPTW_PIP on a compute cluster.
 # Loads modules (aligned with parent STSPTW slurm jobs), creates a venv, and installs dependencies.
-# Run from repo root: bash setup_venv.sh
-# Optional: set VENV_DIR to a custom venv path (default: ./venv inside repo).
+# Run from repo root: bash trillium_scripts/setup_venv.sh
+# Optional: set VENV_DIR to a custom venv path (default: repo root venv).
 
 set -e
 
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VENV_DIR="${VENV_DIR:-${REPO_DIR}/venv}"
 
 echo "=========================================="
