@@ -12,7 +12,10 @@ from utils import *
 def args2dict(args):
     env_params = {"problem_size": args.problem_size, "pomo_size": args.pomo_size, "hardness": args.hardness,
                   "pomo_start": args.pomo_start, "val_dataset": args.val_dataset, "val_episodes": args.val_episodes,
-                  "k_sparse": args.k_sparse}
+                  "k_sparse": args.k_sparse,
+                  "spip_sigma0": args.spip_sigma0, "spip_epsilon": args.spip_epsilon,
+                  "spip_stochastic_transition": args.spip_stochastic_transition,
+                  "spip_noise_bound": args.spip_noise_bound, "spip_noise_dist": args.spip_noise_dist}
 
     model_params = {
                     # original parameters in MvMOE for POMO
@@ -58,7 +61,7 @@ def args2dict(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Proactive Infeasibility Prevention (PIP) Framework for Routing Problems with Complex Constraints.")
     # env_params
-    parser.add_argument('--problem', type=str, default="TSPTW", choices=["TSPTW", "TSPDL"])
+    parser.add_argument('--problem', type=str, default="TSPTW", choices=["TSPTW", "TSPTW_SPIP", "TSPDL"])
     parser.add_argument('--hardness', type=str, default="hard", choices=["hard", "medium", "easy"], help="Different levels of constraint hardness")
     parser.add_argument('--problem_size', type=int, default=50)
     parser.add_argument('--pomo_size', type=int, default=50, help="the number of start node, should <= problem size")
@@ -85,6 +88,12 @@ if __name__ == "__main__":
     parser.add_argument('--use_real_PI_mask', type=bool, default=True, help="whether to use PI masking")
     parser.add_argument('--pip_step', type=int, default=1)
     parser.add_argument('--k_sparse', type=int, default=500)
+    # S-PIP (stochastic PIP) params
+    parser.add_argument('--spip_sigma0', type=float, default=0.3, help="S-PIP noise scale (sigma0)")
+    parser.add_argument('--spip_epsilon', type=float, default=0.05, help="S-PIP confidence for z_factor")
+    parser.add_argument('--spip_stochastic_transition', type=bool, default=False, help="S-PIP: use bounded noise in transition")
+    parser.add_argument('--spip_noise_bound', type=float, default=2.0, help="S-PIP: bound on |xi| scale for bounded noise")
+    parser.add_argument('--spip_noise_dist', type=str, default="uniform", choices=["uniform", "clipped_gaussian"], help="S-PIP: noise distribution")
     parser.add_argument("--use_predicted_PI_mask", type=bool, default=True, help="whether to use PIP-D masking")
     parser.add_argument('--pip_decoder', action='store_true')
     parser.add_argument('--W_q_sl', type=bool, default=True)
@@ -149,7 +158,10 @@ if __name__ == "__main__":
     seed_everything(args.seed)
 
     if args.val_dataset is None:
-        args.val_dataset = [f"{args.problem.lower()}{args.problem_size}_{args.hardness}.pkl"]
+        if args.problem == "TSPTW_SPIP":
+            args.val_dataset = [f"tsptw{args.problem_size}_{args.hardness}.pkl"]
+        else:
+            args.val_dataset = [f"{args.problem.lower()}{args.problem_size}_{args.hardness}.pkl"]
 
     # set log
     run_name = f"_{args.problem}{args.problem_size}_{args.hardness}"

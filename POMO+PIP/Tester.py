@@ -70,7 +70,7 @@ class Tester:
                         no_aug_score, aug_score, ins_infeasible_rate, sol_infeasible_rate = self._solve_tspdllib(path, env_class)
                         name = path.split('/')[-1].split('.pkl')[0]
                         results.append([name, no_aug_score, aug_score, ins_infeasible_rate, sol_infeasible_rate])
-                    elif self.args.problem == "TSPTW":
+                    elif self.args.problem in ("TSPTW", "TSPTW_SPIP"):
                         no_aug_score, aug_score, ins_infeasible_rate, sol_infeasible_rate = self._solve_tsptwlib(path, env_class)
                         name = path.split('/')[-1].split('.pkl')[0]
                         results.append([name, no_aug_score, aug_score, ins_infeasible_rate, sol_infeasible_rate])
@@ -112,10 +112,10 @@ class Tester:
             # compute_gap = False
             if compute_gap:
                 opt_sol_path = self.tester_params['test_set_opt_sol_path'] if self.tester_params['test_set_opt_sol_path'] \
-                    else get_opt_sol_path(os.path.join(self.data_dir, env.problem), env.problem, env.problem_size)
+                    else get_opt_sol_path(os.path.join(self.data_dir, env.problem), env.problem, env.problem_size, self.env_params.get('hardness', 'hard'))
                 print(">> Load optimal solution path: {}".format(opt_sol_path))
                 opt_sol = load_dataset(opt_sol_path, disable_print=True)[episode: episode + batch_size]  # [(obj, route), ...]
-                opt_sol = [i[0] /100 for i in opt_sol] if self.args.problem=="TSPTW" else [i[0]  for i in opt_sol]
+                opt_sol = [i[0] /100 for i in opt_sol] if self.args.problem in ("TSPTW", "TSPTW_SPIP") else [i[0]  for i in opt_sol]
                 opt_sols = torch.cat((opt_sols, torch.tensor(opt_sol).float()), dim=0)
                 if self.tester_params['fsb_dist_only']:
                     gap, aug_gap = [], []
@@ -189,11 +189,11 @@ class Tester:
             #     # use when not training the lazy PIP-D model
             #     with torch.no_grad():
             #         use_predicted_PI_mask = self.lazy_model(state, pomo=self.env_params["pomo_start"],
-            #                                       tw_end=env.node_tw_end if self.args.problem == "TSPTW" else None,
+            #                                       tw_end=env.node_tw_end if self.args.problem in ("TSPTW", "TSPTW_SPIP") else None,
             #                                       use_predicted_PI_mask=False, no_select_prob=True,
             #                                       no_sigmoid=True)
             selected, prob = self.model(state, pomo=self.env_params["pomo_start"],
-                                                      tw_end=env.node_tw_end if self.args.problem == "TSPTW" else None,
+                                                      tw_end=env.node_tw_end if self.args.problem in ("TSPTW", "TSPTW_SPIP") else None,
                                                       use_predicted_PI_mask=use_predicted_PI_mask, no_sigmoid=True)
             # shape: (batch, pomo)
             state, reward, done, infeasible = env.step(selected,

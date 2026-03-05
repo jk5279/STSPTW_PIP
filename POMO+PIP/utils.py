@@ -94,9 +94,10 @@ def seed_everything(seed=2023):
     torch.cuda.manual_seed_all(seed)
 
 def get_env(problem):
-    from envs import TSPDLEnv, TSPTWEnv
+    from envs import TSPDLEnv, TSPTWEnv, TSPTWEnv_SPIP
     all_problems = {
         'TSPTW': TSPTWEnv.TSPTWEnv,
+        'TSPTW_SPIP': TSPTWEnv_SPIP.TSPTWEnv_SPIP,
         'TSPDL': TSPDLEnv.TSPDLEnv,
     }
     if problem == "ALL":

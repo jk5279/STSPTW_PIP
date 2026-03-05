@@ -9,7 +9,10 @@ from utils import *
 
 def args2dict(args):
     env_params = {"problem_size": args.problem_size, "pomo_size": args.pomo_size, "hardness": args.hardness,
-                  "pomo_start":args.pomo_start, "k_sparse": args.k_sparse}
+                  "pomo_start": args.pomo_start, "k_sparse": args.k_sparse,
+                  "spip_sigma0": getattr(args, "spip_sigma0", 0.3), "spip_epsilon": getattr(args, "spip_epsilon", 0.05),
+                  "spip_stochastic_transition": getattr(args, "spip_stochastic_transition", False),
+                  "spip_noise_bound": getattr(args, "spip_noise_bound", 2.0), "spip_noise_dist": getattr(args, "spip_noise_dist", "uniform")}
 
     model_params = {
                     # original parameters in MvMOE for POMO
@@ -39,7 +42,7 @@ def args2dict(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Proactive Infeasibility Prevention (PIP) Framework for Routing Problems with Complex Constraints.")
     # env_params
-    parser.add_argument('--problem', type=str, default="TSPTW", choices=["TSPTW", "TSPDL"])
+    parser.add_argument('--problem', type=str, default="TSPTW", choices=["TSPTW", "TSPTW_SPIP", "TSPDL"])
     parser.add_argument('--hardness', type=str, default="hard", choices=["hard", "medium", "easy"], help="Different levels of constraint hardness")
     parser.add_argument('--problem_size', type=int, default=50)
     parser.add_argument('--pomo_size', type=int, default=1, help="the number of start node, should <= problem size")
@@ -92,9 +95,15 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     if args.test_set_path is None:
-        args.test_set_path = f"../data/{args.problem}/{args.problem.lower()}{args.problem_size}_{args.hardness}.pkl"
+        if args.problem == "TSPTW_SPIP":
+            args.test_set_path = f"../data/TSPTW/tsptw{args.problem_size}_{args.hardness}.pkl"
+        else:
+            args.test_set_path = f"../data/{args.problem}/{args.problem.lower()}{args.problem_size}_{args.hardness}.pkl"
     if args.test_set_opt_sol_path is None:
-        args.test_set_opt_sol_path = f"../data/{args.problem}/lkh_{args.problem.lower()}{args.problem_size}_{args.hardness}.pkl"
+        if args.problem == "TSPTW_SPIP":
+            args.test_set_opt_sol_path = f"../data/TSPTW/lkh_tsptw{args.problem_size}_{args.hardness}.pkl"
+        else:
+            args.test_set_opt_sol_path = f"../data/{args.problem}/lkh_{args.problem.lower()}{args.problem_size}_{args.hardness}.pkl"
     pp.pprint(vars(args))
     env_params, model_params, tester_params = args2dict(args)
     seed_everything(args.seed)
