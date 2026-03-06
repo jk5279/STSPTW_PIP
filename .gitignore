@@ -9,3 +9,5 @@ POMO+PIP/results/
 # SLURM job output (spip_n10_<jobid>.out / .err when submitted from repo root)
 spip_n10_*.out
 spip_n10_*.err
+
+docs/

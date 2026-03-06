@@ -93,6 +93,8 @@ Repeat with `--hardness easy` or `--hardness medium` to create the other difficu
 
 ## S-PIP problem and configuration
 
+**Documentation:** For a self-contained description of S-PIP logic (stochastic transitions, path-level buffer, PIP mask) and how it is integrated into the codebase, see [docs/S-PIP_LOGIC_AND_INTEGRATION.md](docs/S-PIP_LOGIC_AND_INTEGRATION.md).
+
 ### Problem type and environment
 
 - **Problem name:** `TSPTW_SPIP`

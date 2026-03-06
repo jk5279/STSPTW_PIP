@@ -1,11 +1,12 @@
 from torch.optim import Adam as Optimizer
 from torch.optim.lr_scheduler import MultiStepLR as Scheduler
-from tensorboard_logger import Logger as TbLogger
+try:
+    from tensorboard_logger import Logger as TbLogger
+except (ImportError, ModuleNotFoundError):
+    TbLogger = None
 from utils import *
 from models.SINGLEModel import SINGLEModel
-from sklearn.utils.class_weight import compute_class_weight
-import os, wandb
-from sklearn.metrics import confusion_matrix
+import os
 
 class Trainer:
     def __init__(self, args, env_params, model_params, optimizer_params, trainer_params):
@@ -21,11 +22,18 @@ class Trainer:
         self.device = args.device
         self.log_path = args.log_path
         self.result_log = {"val_score": [], "val_gap": [], "val_infsb_rate": []}
-        if args.tb_logger:
+        if args.tb_logger and TbLogger is not None:
             self.tb_logger = TbLogger(self.log_path)
         else:
             self.tb_logger = None
         self.wandb_logger = args.wandb_logger
+        self._wandb = None
+        if args.wandb_logger:
+            try:
+                import wandb
+                self._wandb = wandb
+            except ImportError:
+                self._wandb = None
 
         # Main Components
         self.envs = get_env(self.args.problem)  # a list of envs classes (different problems), remember to initialize it!
@@ -168,20 +176,20 @@ class Trainer:
                 if self.trainer_params["fsb_dist_only"]:
                     self.tb_logger.log_value("feasibility/feasible_dist_mean", feasible_dist_mean, epoch)
                     self.tb_logger.log_value("feasibility/feasible_dist_max_pomo_mean", feasible_dist_max_pomo_mean, epoch)
-            if self.wandb_logger:
-                wandb.log({'train/train_score': train_score})
-                wandb.log({'train/train_loss': train_loss})
+            if self.wandb_logger and self._wandb is not None:
+                self._wandb.log({'train/train_score': train_score})
+                self._wandb.log({'train/train_loss': train_loss})
                 try:
-                    wandb.log({'feasibility/solution_infeasible_rate': sol_infeasible_rate})
-                    wandb.log({'feasibility/instance_infeasible_rate': ins_infeasible_rate})
+                    self._wandb.log({'feasibility/solution_infeasible_rate': sol_infeasible_rate})
+                    self._wandb.log({'feasibility/instance_infeasible_rate': ins_infeasible_rate})
                 except:
                     pass
                 if self.trainer_params["timeout_reward"]:
-                    wandb.log({"feasibility/total_timeout": total_timeout_reward})
-                    wandb.log({"feasibility/timeout_nodes": timeout_nodes_reward})
+                    self._wandb.log({"feasibility/total_timeout": total_timeout_reward})
+                    self._wandb.log({"feasibility/timeout_nodes": timeout_nodes_reward})
                 if self.trainer_params["fsb_dist_only"]:
-                    wandb.log({"feasibility/feasible_dist_mean": feasible_dist_mean})
-                    wandb.log({"feasibility/feasible_dist_max_pomo_mean": feasible_dist_max_pomo_mean})
+                    self._wandb.log({"feasibility/feasible_dist_mean": feasible_dist_mean})
+                    self._wandb.log({"feasibility/feasible_dist_max_pomo_mean": feasible_dist_max_pomo_mean})
 
             # Logs & Checkpoint
             elapsed_time_str, remain_time_str = self.time_estimator.get_est_string(epoch, self.trainer_params['epochs'])
@@ -253,12 +261,12 @@ class Trainer:
                             self.tb_logger.log_value('val_ins_infsb_rate/{}'.format(path.split(".")[0]), infsb_rate[1], epoch)
                         except:
                             pass
-                    if self.wandb_logger:
-                        wandb.log({'val_score/{}'.format(path.split(".")[0]): score})
-                        wandb.log({'val_gap/{}'.format(path.split(".")[0]): gap})
+                    if self.wandb_logger and self._wandb is not None:
+                        self._wandb.log({'val_score/{}'.format(path.split(".")[0]): score})
+                        self._wandb.log({'val_gap/{}'.format(path.split(".")[0]): gap})
                         try:
-                            wandb.log({'val_sol_infsb_rate/{}'.format(path.split(".")[0]): infsb_rate[0]})
-                            wandb.log({'val_ins_infsb_rate/{}'.format(path.split(".")[0]): infsb_rate[1]})
+                            self._wandb.log({'val_sol_infsb_rate/{}'.format(path.split(".")[0]): infsb_rate[0]})
+                            self._wandb.log({'val_ins_infsb_rate/{}'.format(path.split(".")[0]): infsb_rate[1]})
                         except:
                             pass
 
@@ -308,13 +316,13 @@ class Trainer:
                         self.tb_logger.log_value('sl_batch/infsb_samples_number', infsb_samples, (epoch-1) * total_step + batch_id)
                         self.tb_logger.log_value('sl_batch/fsb_accuracy', fsb_accuracy, (epoch-1) * total_step + batch_id)
                         self.tb_logger.log_value('sl_batch/fsb_samples_number', fsb_samples, (epoch-1) * total_step + batch_id)
-                    if self.wandb_logger:
-                        wandb.log({'sl_batch/sl_loss': sl_loss})
-                        wandb.log({'sl_batch/accuracy': accuracy})
-                        wandb.log({'sl_batch/infsb_accuracy': infsb_accuracy})
-                        wandb.log({'sl_batch/infsb_samples_number': infsb_samples})
-                        wandb.log({'sl_batch/fsb_accuracy': fsb_accuracy})
-                        wandb.log({'sl_batch/fsb_samples_number': fsb_samples})
+                    if self.wandb_logger and self._wandb is not None:
+                        self._wandb.log({'sl_batch/sl_loss': sl_loss})
+                        self._wandb.log({'sl_batch/accuracy': accuracy})
+                        self._wandb.log({'sl_batch/infsb_accuracy': infsb_accuracy})
+                        self._wandb.log({'sl_batch/infsb_samples_number': infsb_samples})
+                        self._wandb.log({'sl_batch/fsb_accuracy': fsb_accuracy})
+                        self._wandb.log({'sl_batch/fsb_samples_number': fsb_samples})
 
                     if self.trainer_params["pip_save"] == "batch":
                         self.accuracy_isbsf = True if accuracy > self.accuracy_bsf else False
@@ -417,13 +425,13 @@ class Trainer:
                 self.tb_logger.log_value('sl_epoch/infsb_samples_number', infsb_accuracy_AM.count, epoch)
                 self.tb_logger.log_value('sl_epoch/fsb_accuracy', fsb_accuracy_AM.avg, epoch)
                 self.tb_logger.log_value('sl_epoch/fsb_samples_number', fsb_accuracy_AM.count, epoch)
-            if self.wandb_logger:
-                wandb.log({'sl_epoch/sl_loss': sl_loss_AM.avg})
-                wandb.log({'sl_epoch/accuracy': accuracy_AM.avg})
-                wandb.log({'sl_epoch/infsb_accuracy': infsb_accuracy_AM.avg})
-                wandb.log({'sl_epoch/infsb_samples_number': infsb_accuracy_AM.count})
-                wandb.log({'sl_epoch/fsb_accuracy': fsb_accuracy_AM.avg})
-                wandb.log({'sl_epoch/fsb_samples_number': fsb_accuracy_AM.count})
+            if self.wandb_logger and self._wandb is not None:
+                self._wandb.log({'sl_epoch/sl_loss': sl_loss_AM.avg})
+                self._wandb.log({'sl_epoch/accuracy': accuracy_AM.avg})
+                self._wandb.log({'sl_epoch/infsb_accuracy': infsb_accuracy_AM.avg})
+                self._wandb.log({'sl_epoch/infsb_samples_number': infsb_accuracy_AM.count})
+                self._wandb.log({'sl_epoch/fsb_accuracy': fsb_accuracy_AM.avg})
+                self._wandb.log({'sl_epoch/fsb_samples_number': fsb_accuracy_AM.count})
 
             # save lazy model every epoch
             if self.trainer_params["pip_save"] == "epoch":
@@ -567,6 +575,7 @@ class Trainer:
                                     sl_loss = sl_loss * sl_weight
                             else:
                                 # assert self.trainer_params["sl_loss"] == "BCELoss", "only BCELoss is supported when label_balance_sampling==True without speedup!"
+                                from sklearn.utils.class_weight import compute_class_weight
                                 edge_labels = (label != 0).int().cpu().numpy().flatten()
                                 edge_cw = compute_class_weight("balanced", classes=np.unique(edge_labels), y=edge_labels)
                                 if self.trainer_params["sl_loss"] == "BCELoss":
@@ -669,6 +678,7 @@ class Trainer:
         # Calculate the prediction accuracy
         if self.model_params['pip_decoder'] and self.is_train_pip_decoder:
             try:
+                from sklearn.metrics import confusion_matrix
                 tn, fp, fn, tp = confusion_matrix((label_LIST > self.trainer_params["decision_boundary"]).astype(np.int32),
                                                   (pred_LIST > self.trainer_params["decision_boundary"]).astype(np.int32)).ravel()
                 accuracy = (tp + tn) / (tp + tn + fp + fn)
@@ -720,7 +730,9 @@ class Trainer:
 
         if self.model_params["pip_decoder"]:
             pred_LIST, label_LIST = np.array([]), np.array([])
-        batch_size = data.size(0) if isinstance(data, torch.Tensor) else data[-1].size(0)
+        batch_size = data.size(0) if isinstance(data, torch.Tensor) else data[0].size(0)
+        if batch_size == 0:
+            return torch.zeros(0).to(self.device), torch.zeros(0).to(self.device), None, np.array([]), np.array([])
         with torch.no_grad():
             env.load_problems(batch_size, problems=data, aug_factor=aug_factor, normalize=True)
             reset_state, _, _ = env.reset()
@@ -834,6 +846,9 @@ class Trainer:
             remaining = val_episodes - episode
             bs = min(batch_size, remaining)
             data = env.load_dataset(os.path.join(dir, val_path), offset=episode, num_samples=bs)
+            # Skip when no samples loaded (e.g. validation file smaller than val_episodes); model cannot handle batch_size=0
+            if data[0].size(0) == 0:
+                break
             no_aug, aug, infsb_rate, pred_list, label_list  = self._val_one_batch(data, env, aug_factor=8, eval_type="argmax")
             if isinstance(aug, list):
                 no_aug, no_aug_total_timeout, no_aug_timeout_nodes = no_aug
@@ -858,6 +873,7 @@ class Trainer:
                 label_LIST = np.append(label_LIST, label_list)
 
         if self.model_params["pip_decoder"]:
+            from sklearn.metrics import confusion_matrix
             tn, fp, fn, tp = confusion_matrix((label_LIST > 0.5).astype(np.int32),(pred_LIST > 0.5).astype(np.int32)).ravel()
             # tn, fp, fn, tp = confusion_matrix((labels > 0.5).int().cpu(), (F.sigmoid(predict_out) > 0.5).int().cpu()).ravel()
             accuracy = (tp + tn) / (tp + tn + fp + fn)
@@ -869,12 +885,12 @@ class Trainer:
                 self.tb_logger.log_value('val_sl/fsb_accuracy', fsb_accuracy, epoch)
                 self.tb_logger.log_value('val_sl/infsb_sample_nums', (label_LIST > 0.5).astype(np.int32).sum(), epoch)
                 self.tb_logger.log_value('val_sl/fsb_sample_nums', (label_LIST < 0.5).astype(np.int32).sum(), epoch)
-            if self.wandb_logger:
-                wandb.log({'val_sl/accuracy': accuracy})
-                wandb.log({'val_sl/infsb_accuracy': infsb_accuracy})
-                wandb.log({'val_sl/fsb_accuracy': fsb_accuracy})
-                wandb.log({'val_sl/infsb_sample_nums': (label_LIST > 0.5).astype(np.int32).sum()})
-                wandb.log({'val_sl/fsb_sample_nums': (label_LIST < 0.5).astype(np.int32).sum()})
+            if self.wandb_logger and self._wandb is not None:
+                self._wandb.log({'val_sl/accuracy': accuracy})
+                self._wandb.log({'val_sl/infsb_accuracy': infsb_accuracy})
+                self._wandb.log({'val_sl/fsb_accuracy': fsb_accuracy})
+                self._wandb.log({'val_sl/infsb_sample_nums': (label_LIST > 0.5).astype(np.int32).sum()})
+                self._wandb.log({'val_sl/fsb_sample_nums': (label_LIST < 0.5).astype(np.int32).sum()})
             print("PIP-D Validation, Auc: {:.4f}, Infeasible Auc: {:.4f} ({}), Feasible Auc: {:.4f} ({})".format(accuracy, infsb_accuracy,(fn + tp), fsb_accuracy,(tn + fp)))
         if self.trainer_params["fsb_dist_only"]:
             print(">> Only feasible solutions are under consideration!")

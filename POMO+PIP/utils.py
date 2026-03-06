@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from multiprocessing import Pool
 from multiprocessing.dummy import Pool as ThreadPool
-from scipy.stats import ttest_rel
 import shutil
 import logging
 
@@ -139,6 +138,7 @@ def num_param(model):
 
 
 def check_null_hypothesis(a, b):
+    from scipy.stats import ttest_rel
     print(len(a), a)
     print(len(b), b)
     alpha_threshold = 0.05

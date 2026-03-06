@@ -16,8 +16,14 @@
 
 set -e
 
-SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(cd "$SCRIPT_PATH/.." && pwd)"
+# Under SLURM the script runs from job spool dir; use submit dir so run_train_spip_n10.sh is found
+if [ -n "${SLURM_SUBMIT_DIR:-}" ]; then
+  PROJECT_DIR="${SLURM_SUBMIT_DIR}"
+  SCRIPT_PATH="${SLURM_SUBMIT_DIR}/trillium_scripts"
+else
+  SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  PROJECT_DIR="$(cd "$SCRIPT_PATH/.." && pwd)"
+fi
 ENV_DIR="${ENV_DIR:-${PROJECT_DIR}/venv}"
 
 cd "$SCRIPT_PATH"

@@ -4,7 +4,6 @@ import os, pickle
 import sys
 import numpy as np
 from collections import namedtuple
-from scipy import stats as scipy_stats
 
 __all__ = ['TSPTWEnv_SPIP']
 dg = sys.modules[__name__]
@@ -125,7 +124,13 @@ class TSPTWEnv_SPIP:
         self.step_state = Step_State()
 
         # Precompute z-score once (scipy in step() would be a bottleneck)
-        self.z_factor = float(scipy_stats.norm.ppf(1.0 - self.spip_epsilon))
+        try:
+            from scipy import stats as _scipy_stats
+            self.z_factor = float(_scipy_stats.norm.ppf(1.0 - self.spip_epsilon))
+        except Exception:
+            # Fallback when scipy unavailable (e.g. numpy/scipy version conflict): use approx for common epsilon
+            _approx = {0.05: 1.64485362695, 0.01: 2.32634787404, 0.10: 1.28155156554}
+            self.z_factor = float(_approx.get(self.spip_epsilon, 1.64485362695))
 
     def _sample_bounded_noise(self, distance):
         """Sample bounded noise ξ with same device/dtype as distance. d=0 guarded via clamp(min=1e-8)."""
@@ -159,8 +164,9 @@ class TSPTWEnv_SPIP:
             # Todo: should we additionally normalize somehow, e.g. by expected makespan/tour length?
             tw_start = tw_start / loc_factor
             tw_end = tw_end / loc_factor
-            # Upper bound for depot = max(node ub + dist to depot), to make this tight
-            tw_end[:, 0] = (torch.cdist(node_xy[:, None, 0], node_xy[:, 1:]).squeeze(1) + tw_end[:, 1:]).max(dim=-1)[0]
+            # Upper bound for depot = max(node ub + dist to depot), to make this tight (skip when batch empty)
+            if node_xy.dim() >= 2 and node_xy.size(0) > 0:
+                tw_end[:, 0] = (torch.cdist(node_xy[:, None, 0], node_xy[:, 1:]).squeeze(1) + tw_end[:, 1:]).max(dim=-1)[0]
             # nodes_timew = nodes_timew / nodes_timew[0, 1]
 
         # Keep loaded problem tensors on the env device to avoid mixed CPU/CUDA ops.
@@ -668,6 +674,14 @@ class TSPTWEnv_SPIP:
             data = pickle.load(f)[offset: offset+num_samples]
             if not disable_print:
                 print(">> Load {} data ({}) from {}".format(len(data), type(data), path))
+        if len(data) == 0:
+            # Empty slice: return tensors with correct ndim so load_problems doesn't index 1D tensors
+            n = self.problem_size
+            node_xy = torch.zeros(0, n, 2)
+            service_time = torch.zeros(0, n)
+            tw_start = torch.zeros(0, n)
+            tw_end = torch.zeros(0, n)
+            return (node_xy, service_time, tw_start, tw_end)
         node_xy, service_time, tw_start, tw_end = [i[0] for i in data], [i[1] for i in data], [i[2] for i in data], [i[3] for i in data]
         node_xy, service_time, tw_start, tw_end = torch.Tensor(node_xy), torch.Tensor(service_time), torch.Tensor(tw_start), torch.Tensor(tw_end)
 
