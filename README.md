@@ -55,7 +55,7 @@ Workflow: generate datasets for training and validation â†’ train per hardness â
 cd POMO+PD
 python train.py --problem TSPTW --problem_size 10 --hardness {easy,medium,hard} \
   --train_episodes 10000 --val_episodes 10000 --train_batch_size 64 \
-  --epochs 10000 --generate_PI_mask --penalty_mode primal_dual
+  --epochs 10000 --penalty_mode primal_dual
 ```
 
 **Generate data** (for both validation and test):
