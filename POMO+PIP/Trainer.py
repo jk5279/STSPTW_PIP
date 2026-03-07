@@ -828,6 +828,9 @@ class Trainer:
         return no_aug_score, aug_score, infeasible_output, None, None
 
     def _val_and_stat(self, dir, val_path, env, batch_size=500, val_episodes=1000, compute_gap=False, epoch=1):
+        full_val_path = os.path.join(dir, val_path)
+        hardness = getattr(env, "hardness", self.env_params.get("hardness", "hard"))
+        print(">> Validation: path={}, hardness={}".format(full_val_path, hardness))
         no_aug_score_list, aug_score_list, no_aug_gap_list, aug_gap_list, sol_infeasible_rate_list, ins_infeasible_rate_list = [], [], [], [], [], []
         episode, no_aug_score, aug_score, sol_infeasible_rate, ins_infeasible_rate = 0, torch.zeros(0).to(self.device), torch.zeros(0).to(self.device), torch.zeros(0).to(self.device), torch.zeros(0).to(self.device)
         # if self.trainer_params["timeout_reward"]:

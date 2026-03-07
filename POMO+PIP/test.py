@@ -104,6 +104,9 @@ if __name__ == "__main__":
             args.test_set_opt_sol_path = f"../data/TSPTW/lkh_tsptw{args.problem_size}_{args.hardness}.pkl"
         else:
             args.test_set_opt_sol_path = f"../data/{args.problem}/lkh_{args.problem.lower()}{args.problem_size}_{args.hardness}.pkl"
+    # If optimal-solution file does not exist, skip gap computation (run from POMO+PIP so ../data is repo data/)
+    if args.test_set_opt_sol_path is not None and not os.path.exists(args.test_set_opt_sol_path):
+        args.test_set_opt_sol_path = None
     pp.pprint(vars(args))
     env_params, model_params, tester_params = args2dict(args)
     seed_everything(args.seed)

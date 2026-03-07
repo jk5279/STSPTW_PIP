@@ -784,8 +784,8 @@ def gen_tw(size, graph_size, time_factor, dura_region, rnds):
     horizon = np.zeros((size, graph_size, 2))
     horizon[:] = [0, service_window]
 
-    # sample earliest start times
-    tw_start = rnds.randint(horizon[..., 0], horizon[..., 1] / 2)
+    # sample earliest start times (randint upper bound is exclusive, so tw_start in [0, service_window/2) )
+    tw_start = rnds.randint(horizon[..., 0], horizon[..., 1] // 2)
     tw_start[:, 0] = 0
 
     # calculate latest start times b, which is
@@ -793,6 +793,7 @@ def gen_tw(size, graph_size, time_factor, dura_region, rnds):
     # and combine it with tw_start to create the time windows
     epsilon = rnds.uniform(dura_region[0], dura_region[1], (tw_start.shape))
     duration = np.around(time_factor * epsilon)
+    duration = np.maximum(duration, 1)  # avoid zero-length windows (important for medium: small dura_region)
     duration[:, 0] = service_window
     tw_end = np.minimum(tw_start + duration, horizon[..., 1]).astype(int)
 
