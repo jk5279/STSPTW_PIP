@@ -1,13 +1,10 @@
-import os
-# Work around tensorboard_logger + protobuf 4+ incompatibility (Descriptors cannot be created directly)
-os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
-
 import pytz
 import argparse
 import pprint as pp
 from datetime import datetime
 import warnings
 warnings.filterwarnings('ignore')
+import wandb
 from Trainer import Trainer
 from utils import *
 
@@ -16,9 +13,20 @@ def args2dict(args):
     env_params = {"problem_size": args.problem_size, "pomo_size": args.pomo_size, "hardness": args.hardness,
                   "pomo_start": args.pomo_start, "val_dataset": args.val_dataset, "val_episodes": args.val_episodes,
                   "k_sparse": args.k_sparse,
-                  "spip_sigma0": args.spip_sigma0, "spip_epsilon": args.spip_epsilon,
-                  "spip_stochastic_transition": args.spip_stochastic_transition,
-                  "spip_noise_bound": args.spip_noise_bound, "spip_noise_dist": args.spip_noise_dist}
+                  "delay_scale": getattr(args, "delay_scale", 0.1),
+                  "reveal_delay_before_action": getattr(args, "reveal_delay_before_action", False),
+                  # SPIP params (ignored by other envs)
+                  "spip_sigma0": getattr(args, "spip_sigma0", 0.3), "spip_epsilon": getattr(args, "spip_epsilon", 0.05),
+                  "spip_stochastic_transition": getattr(args, "spip_stochastic_transition", False),
+                  "spip_noise_bound": getattr(args, "spip_noise_bound", 2.0), "spip_noise_dist": getattr(args, "spip_noise_dist", "uniform"),
+                  # STSPTW_v2 params (ignored by other envs)
+                  "noise_type": getattr(args, "noise_type", "gamma"),
+                  "cv": getattr(args, "cv", 0.5),
+                  "alpha": getattr(args, "alpha", 0.95),
+                  "n_mc_samples": getattr(args, "n_mc_samples", 32),
+                  "two_point_delta": getattr(args, "two_point_delta", 0.3),
+                  "two_point_p": getattr(args, "two_point_p", 0.5),
+                  }
 
     model_params = {
                     # original parameters in MvMOE for POMO
@@ -64,12 +72,40 @@ def args2dict(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Proactive Infeasibility Prevention (PIP) Framework for Routing Problems with Complex Constraints.")
     # env_params
-    parser.add_argument('--problem', type=str, default="TSPTW", choices=["TSPTW", "TSPTW_SPIP", "TSPDL"])
+    parser.add_argument('--problem', type=str, default="TSPTW", choices=["TSPTW", "TSPTW_SPIP", "STSPTW", "STSPTW_v2"])
     parser.add_argument('--hardness', type=str, default="hard", choices=["hard", "medium", "easy"], help="Different levels of constraint hardness")
     parser.add_argument('--problem_size', type=int, default=50)
     parser.add_argument('--pomo_size', type=int, default=50, help="the number of start node, should <= problem size")
     parser.add_argument('--pomo_start', type=bool, default=False)
     parser.add_argument('--val_dataset', type=str, nargs='+', default=None, help="use the default one if set to None")
+    parser.add_argument('--delay_scale', type=float, default=0.1, help='STSPTW delay weight (relative to deterministic travel)')
+    parser.add_argument(
+        '--reveal_delay_before_action',
+        action='store_true',
+        help='For STSPTW: if set, sample and reveal stochastic travel times before action selection (pre-decision noise).'
+    )
+    # STSPTW_v2 params
+    parser.add_argument('--noise_type', type=str, default='gamma', choices=['gamma', 'two_point'],
+                        help='STSPTW_v2: stochastic distribution family')
+    parser.add_argument('--cv', type=float, default=0.5, help='STSPTW_v2: coefficient of variation (0 = deterministic)')
+    parser.add_argument('--alpha', type=float, default=0.95, help='STSPTW_v2: chance constraint level for MC PIP mask')
+    parser.add_argument('--n_mc_samples', type=int, default=32, help='STSPTW_v2: MC samples for PIP probability estimation')
+    parser.add_argument('--two_point_delta', type=float, default=0.3, help='STSPTW_v2: delta for two-point distribution')
+    parser.add_argument('--two_point_p', type=float, default=0.5, help='STSPTW_v2: p(low) for two-point distribution')
+    # SPIP params
+    parser.add_argument('--spip_sigma0', type=float, default=0.3, help="S-PIP noise scale (sigma0)")
+    parser.add_argument('--spip_epsilon', type=float, default=0.05, help="S-PIP confidence for z_factor")
+    parser.add_argument('--spip_stochastic_transition', type=bool, default=False, help="S-PIP: use bounded noise in transition")
+    parser.add_argument('--spip_noise_bound', type=float, default=2.0, help="S-PIP: bound on |xi| scale for bounded noise")
+    parser.add_argument('--spip_noise_dist', type=str, default="uniform", choices=["uniform", "clipped_gaussian"], help="S-PIP: noise distribution")
+    parser.add_argument(
+        '--model_type',
+        type=str,
+        default="POMO_STAR",
+        choices=["POMO", "POMO_STAR", "POMO_STAR_PIP"],
+        help="Backbone + PIP variant: POMO (no LM, no PI mask), "
+             "POMO_STAR (LM only), POMO_STAR_PIP (LM + real PI mask; no PIP-D)."
+    )
 
     # model_params
     parser.add_argument('--embedding_dim', type=int, default=128)
@@ -91,12 +127,6 @@ if __name__ == "__main__":
     parser.add_argument('--use_real_PI_mask', type=bool, default=True, help="whether to use PI masking")
     parser.add_argument('--pip_step', type=int, default=1)
     parser.add_argument('--k_sparse', type=int, default=500)
-    # S-PIP (stochastic PIP) params
-    parser.add_argument('--spip_sigma0', type=float, default=0.3, help="S-PIP noise scale (sigma0)")
-    parser.add_argument('--spip_epsilon', type=float, default=0.05, help="S-PIP confidence for z_factor")
-    parser.add_argument('--spip_stochastic_transition', type=bool, default=False, help="S-PIP: use bounded noise in transition")
-    parser.add_argument('--spip_noise_bound', type=float, default=2.0, help="S-PIP: bound on |xi| scale for bounded noise")
-    parser.add_argument('--spip_noise_dist', type=str, default="uniform", choices=["uniform", "clipped_gaussian"], help="S-PIP: noise distribution")
     parser.add_argument("--use_predicted_PI_mask", type=bool, default=True, help="whether to use PIP-D masking")
     parser.add_argument('--pip_decoder', action='store_true')
     parser.add_argument('--W_q_sl', type=bool, default=True)
@@ -154,27 +184,71 @@ if __name__ == "__main__":
     parser.add_argument('--gpu_id', type=str, default="0")
     parser.add_argument("--multiple_gpu", type=bool, default=False)
     parser.add_argument('--occ_gpu', type=float, default=0., help="occupy (X)% GPU memory in advance, please use sparingly.")
-    parser.add_argument('--tb_logger', type=bool, default=False, help="Enable TensorBoard logging (requires tensorboard_logger)")
+    parser.add_argument('--tb_logger', type=bool, default=True)
     parser.add_argument('--wandb_logger', type=bool, default=False)
 
     args = parser.parse_args()
+
+    # Map high-level model_type to concrete training options.
+    # POMO:       no LM, no PI masking, no PIP-D
+    # POMO_STAR:  LM only (timeout_reward etc.), no PI masking, no PIP-D
+    # POMO_STAR_PIP: LM + real PI masking (generate_PI_mask), no PIP-D
+    if args.model_type == "POMO":
+        # No Lagrangian-based timeout reward
+        args.timeout_reward = False
+        args.timeout_node_reward = False
+        args.fsb_reward_only = False
+        args.penalty_increase = False
+        # No PI masking / PIP-D
+        args.generate_PI_mask = False
+        args.use_real_PI_mask = False
+        args.use_predicted_PI_mask = False
+        args.pip_decoder = False
+        args.lazy_pip_model = False
+    elif args.model_type == "POMO_STAR":
+        # Lagrangian-based timeout reward on, but no PI masking
+        args.timeout_reward = True
+        args.timeout_node_reward = True
+        args.penalty_increase = False
+        # Keep penalty_factor as provided
+        args.generate_PI_mask = False
+        args.use_real_PI_mask = False
+        args.use_predicted_PI_mask = False
+        args.pip_decoder = False
+        args.lazy_pip_model = False
+    elif args.model_type == "POMO_STAR_PIP":
+        # LM on + real PI masking (PIP), no PIP-D
+        args.timeout_reward = True
+        args.timeout_node_reward = True
+        args.penalty_increase = False
+        args.generate_PI_mask = True
+        args.use_real_PI_mask = True
+        args.use_predicted_PI_mask = False
+        args.pip_decoder = False
+        args.lazy_pip_model = False
+
     seed_everything(args.seed)
 
     if args.val_dataset is None:
-        if args.problem == "TSPTW_SPIP":
+        if args.problem in ("STSPTW", "STSPTW_v2"):
             args.val_dataset = [f"tsptw{args.problem_size}_{args.hardness}.pkl"]
         else:
             args.val_dataset = [f"{args.problem.lower()}{args.problem_size}_{args.hardness}.pkl"]
 
     # set log
     run_name = f"_{args.problem}{args.problem_size}_{args.hardness}"
+    if args.problem == "STSPTW":
+        run_name += f"_dw{getattr(args, 'delay_scale', 0.1)}"
+    if args.problem == "STSPTW_v2":
+        run_name += f"_{args.noise_type}_cv{args.cv}"
     if args.timeout_reward:
         run_name += "_LM"
     if args.generate_PI_mask:
         run_name += f"_PIMask_{args.pip_step}Step"
     if args.pip_decoder:
         run_name += f"_PIPDecoder_UpdateFrequency_{args.simulation_stop_epoch}_{args.pip_update_interval}_{args.pip_update_epoch}_{args.pip_last_growup}"
-    process_start_time = datetime.now(pytz.timezone("Asia/Singapore"))
+    # Use Toronto time for run naming / logging
+    process_start_time = datetime.now(pytz.timezone("America/Toronto"))
     if args.resume_path is not None:
         args.log_path = args.resume_path
     else:
@@ -204,7 +278,6 @@ if __name__ == "__main__":
     env_params, model_params, optimizer_params, trainer_params = args2dict(args)
 
     if args.wandb_logger:
-        import wandb
         wandb.init(project="PIP", name=name,
                    config={**env_params, **model_params, **optimizer_params, **trainer_params})
     create_logger(filename="run_log", log_path=args.log_path)

@@ -1,0 +1,35 @@
+\begin{table}[h]
+\centering
+\caption{Results on TSPTW ($n=10$).}
+\label{tab:TSPTW10}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{l
+  S[table-format=2.2] S[table-format=2.2] c |
+  S[table-format=2.2] S[table-format=2.2] c |
+  S[table-format=2.2] S[table-format=2.2] c}
+\toprule
+\multirow{3}{*}{\textbf{Method}}
+  & \multicolumn{3}{c|}{\textbf{Easy}}
+  & \multicolumn{3}{c|}{\textbf{Medium}}
+  & \multicolumn{3}{c}{\textbf{Hard}} \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}\cmidrule(lr){8-10}
+  & \multicolumn{2}{c}{\textbf{Infeasible\%}} & \multirow{2}{*}{\textbf{Obj.}$\downarrow$}
+  & \multicolumn{2}{c}{\textbf{Infeasible\%}} & \multirow{2}{*}{\textbf{Obj.}$\downarrow$}
+  & \multicolumn{2}{c}{\textbf{Infeasible\%}} & \multirow{2}{*}{\textbf{Obj.}$\downarrow$} \\
+\cmidrule(lr){2-3}\cmidrule(lr){5-6}\cmidrule(lr){8-9}
+  & {\textbf{Sol.}$\downarrow$} & {\textbf{Inst.}$\downarrow$} &
+  & {\textbf{Sol.}$\downarrow$} & {\textbf{Inst.}$\downarrow$} &
+  & {\textbf{Sol.}$\downarrow$} & {\textbf{Inst.}$\downarrow$} & \\
+\midrule
+LKH3         &  \textbf{0.09} &  0.09 & 3.23 & \textbf{66.74} & \textbf{66.74} & 5.02 &  4.05 &  4.05 & 5.14 \\
+POMO*        &  4.07 &  4.07 & 3.28 & 71.62 & 71.62 & 4.25 &  5.75 &  5.75 & 5.16 \\
+POMO*+PIP    &  0.82 &  0.82 & 3.28 & 68.71 & 68.71 & 4.28 &  \textbf{0.87} &  \textbf{0.87} & 5.16 \\
+POMO*+S-PIP  &  1.40 &  0.22 & \textbf{2.95} & 71.40 & 70.20 & 3.81 &  3.90 &  3.10 & 4.65 \\
+POMO*+PD-PIP &  0.66 & \textbf{0.00} & 3.42 & 72.48 & 68.47$^*$ & 4.41 &  4.82 &  2.79 & 5.21 \\
+OTA+PIP      &  7.64 &  1.20 & 3.85 & 77.00 & 70.50 & 4.82 & 54.90 & 42.60 & 5.71 \\
+\midrule
+\multicolumn{10}{l}{\footnotesize $^*$ Problem generation hyperparameter issue.} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}

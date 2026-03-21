@@ -1,13 +1,40 @@
-# Account-specific SLURM scripts (do not commit account name)
-trillium_scripts/run_spip_n10_cglee.slurm
-trillium_scripts/run_spip_n10_easy_cglee.slurm
-trillium_scripts/run_spip_n10_medium_cglee.slurm
+.pt
 
-# Training logs and checkpoints
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+
+# Python build
+build/
+dist/
+*.egg-info/
+
+# Project-specific
+POMO+PIP/__pycache__/
+POMO+PIP/envs/__pycache__/
+POMO+PIP/models/__pycache__/
 POMO+PIP/results/
+POMO+PIP/data/
+POMO+PIP/*.log
 
-# SLURM job output (spip_n10_<jobid>.out / .err when submitted from repo root)
-spip_n10_*.out
-spip_n10_*.err
+# Large external data
+data/
 
-docs/
+# Logs (slurm output, etc.)
+logs/slurm/*.out
+
+# Results (regenerable)
+results/figures/*.png
+results/csv/*.csv
+
+# Checkpoints
+**/trained_model_*.pt
+**/epoch-*.pt

@@ -1,0 +1,16 @@
+torch
+torchvision
+torchaudio
+numpy
+matplotlib
+tqdm
+pytz
+scikit-learn
+tensorflow
+tensorboard_logger
+pandas
+wandb
+scipy
+ortools
+six
+gurobipy

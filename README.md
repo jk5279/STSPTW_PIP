@@ -1,270 +1,291 @@
-# STSPTW_PIP: TSP with Time Windows — S-PIP, OTA, and Primal-Dual Implementations
+# STSPTWenv
 
-This repository provides the implementation of **S-PIP (Stochastic Proactive Infeasibility Prevention)** for the **TSP with Time Windows (TSPTW)**. It extends the PIP framework ([Bi et al., NeurIPS 2024](https://arxiv.org/abs/2410.21066)) with optional **stochastic travel-time transitions** (realized travel = distance + bounded noise) and **path-level buffered feasibility masking**. The repository also includes an **Offline Temporally-Abstracted (OTA)** reinforcement learning implementation for TSPTW (in `OTA/`) and a **primal-dual** approach for stochastic TSPTW (in `POMO+PD/`). The following sections describe S-PIP with pointers to OTA and POMO+PD where relevant. The codebase is a fork of [PIP-constraint](https://github.com/jieyibi/PIP-constraint), focused on TSPTW and S-PIP for reproducibility of the reported experiments.
-
----
-
-## Problem and Method
-
-**TSP with Time Windows (TSPTW).** The agent must visit each node exactly once, minimize total travel time, and respect a time window [a_i, b_i] at each node i (arrival must fall within the window).
-
-**PIP (baseline).** Proactive Infeasibility Prevention uses lookahead masking to exclude nodes that would lead to time-window violations; see the original paper *Learning to Handle Complex Constraints for Vehicle Routing Problems* (NeurIPS 2024).
-
-**S-PIP (this work).**
-
-- **Stochastic transitions:** Realized travel time = d + \xi, with \xi drawn from a **bounded** distribution (e.g. uniform on [-b\sqrt{d}, +b\sqrt{d}] or clipped Gaussian), so the agent is trained and evaluated under travel-time uncertainty.
-- **Path-level buffer:** In the feasibility mask, a buffer proportional to \sqrt{L_j} (path length to candidate j) is applied so that time-window feasibility holds with high probability under that uncertainty.
-
-For equations and integration details, see [docs/S-PIP_LOGIC_AND_INTEGRATION.md](docs/S-PIP_LOGIC_AND_INTEGRATION.md).
-
----
-
-## Repository Contents and Scope
-
-**Repository layout**
-
-- `POMO+PIP/` — S-PIP and PIP training/evaluation (this README).
-- `POMO+PD/` — Primal-dual approach for stochastic TSPTW; workflow and commands [below](#primal-dual-pomopd) and in [POMO+PD/Readme.md](POMO+PD/Readme.md).
-- `OTA/` — Offline temporally-abstract RL for TSPTW; workflow and commands [below](#ota-offline-temporally-abstracted) and in [OTA/README.md](OTA/README.md).
-- `trillium_scripts/` — Cluster setup and S-PIP job scripts.
-- `docs/` — S-PIP logic and integration notes.
-
-This repository includes:
-
-- **POMO+PIP (S-PIP):** Implementation of the **TSPTW_SPIP** problem and environment ([POMO+PIP/envs/TSPTWEnv_SPIP.py](POMO+PIP/envs/TSPTWEnv_SPIP.py)), training and evaluation scripts (`train.py`, `test.py`), and data generation (`generate_data.py`) for TSPTW.
-- **OTA:** Offline temporally-abstract RL for TSPTW: hierarchical actor–critic trained from a fixed offline trajectory buffer; lives under [OTA/](OTA/) with [OTA/README.md](OTA/README.md) for full details.
-- **POMO+PD (Primal-Dual):** Primal-dual training for (stochastic) TSPTW: dual variables (lambdas) for total timeout and late-node count, updated by subgradient; optional PI masking. Lives under [POMO+PD/](POMO+PD/) with [POMO+PD/Readme.md](POMO+PD/Readme.md) for training and evaluation.
-
-It is a fork of PIP-constraint: POMO+PIP training and TSPTW PIP/PIP-D are retained; the S-PIP environment and bounded-noise transitions are added. For full multi-problem PIP experiments, see the [original repository](https://github.com/jieyibi/PIP-constraint).
-
-**Methods implemented**
-
-- **S-PIP:** Online RL (POMO+PIP), optional stochastic travel-time transitions and path-level buffered PIP masking; problem type `TSPTW_SPIP`, training via `POMO+PIP/train.py`.
-- **OTA:** Offline RL with temporal abstraction; no environment interaction at training time; inference with 8-fold augmentation and optional PIP mask; training via `OTA/train_ota.py`. Full setup and hyperparameters in [OTA/README.md](OTA/README.md).
-- **Primal-Dual (POMO+PD):** TSPTW training with dual variables (lambdas) for timeout and late-node constraints, updated by subgradient (`--penalty_mode primal_dual`); supports PI masking. Training via `POMO+PD/train.py`.
-
----
-
-## Primal-Dual (POMO+PD)
-
-Workflow: generate datasets for training and validation → train per hardness → test per hardness. Replication can use saved datasets and trained models and run only test.
-
-**Train** (from `POMO+PD/`):
-
-```bash
-cd POMO+PD
-python train.py --problem TSPTW --problem_size 10 --hardness {easy,medium,hard} \
-  --train_episodes 10000 --val_episodes 10000 --train_batch_size 64 \
-  --epochs 10000 --penalty_mode primal_dual
-```
-
-**Generate data** (for both validation and test):
-
-```bash
-cd POMO+PD
-python generate_data.py --problem TSPTW --problem_size 10 --pomo_size 1 \
-  --hardness {easy,medium,hard} --num_samples 10000 --dir ../data
-```
-
-**Test** (use the checkpoint and test set paths for your run):
-
-```bash
-cd POMO+PD
-python test.py --problem TSPTW --hardness hard --problem_size 10 \
-  --checkpoint path/to/epoch-1000.pt \
-  --test_set_path ../data/TSPTW/tsptw10_hard.pkl --test_episodes 10000
-```
-
-Use `--hardness easy` or `--hardness medium` and the corresponding checkpoint and test set for other difficulty levels. Full options: [POMO+PD/Readme.md](POMO+PD/Readme.md).
-
----
-
-## OTA (Offline Temporally-Abstracted)
-
-OTA learns a hierarchical actor–critic from a fixed offline trajectory buffer (no environment interaction at training time). Inference uses 8-fold symmetry augmentation and an optional PIP feasibility mask.
-
-**Problem:** TSPTW, 10 customers + 1 depot (`problem_size = 11`), hardness easy/medium/hard, coordinates uniform in [0,100]^2, travel time = Euclidean distance + stochastic noise per edge.
-
-**Data** (under `OTA/data/TSPTW/` or `data/TSPTW/`): `tsptw10_{h}_buffer.pkl` (training buffer), `tsptw10_{h}_train.pkl`, `tsptw10_{h}_val.pkl`, `tsptw10_{h}_test.pkl` with `{h}` ∈ {easy, medium, hard}. One model per hardness.
-
-**Generate data:**
-
-```bash
-cd OTA
-python gen_tsptw_dataset.py   # train / val / buffer splits
-python gen_tsptw_test.py      # test set (seed 9999)
-```
-
-**Model:** Transformer encoder (6 layers, 128-dim, 8 heads, 512 FFN) + hierarchical low/high actor–critic (~2.49M parameters).
-
-**Train** (one model per hardness):
-
-```bash
-cd OTA
-python train_ota.py --hardness easy \
-  --dataset data/TSPTW/tsptw10_easy_buffer.pkl \
-  --val_dataset data/TSPTW/tsptw10_easy_val.pkl
-```
-
-**Evaluation:** Best-of-8 augmentation; optional `--pip_step 1` for PIP feasibility mask. Single run:
-
-```bash
-cd OTA
-python train_ota.py --val_only --aug_only --hardness easy --pip_step 1 \
-  --dataset data/TSPTW/tsptw10_easy_buffer.pkl \
-  --val_dataset data/TSPTW/tsptw10_easy_test.pkl \
-  --checkpoint results/<run_dir>/model_epoch_200.pt
-```
-
-**Representative results** (test set, 10k instances, aug-8): Easy pip_step 0/1 → 82% / 99% feasible; Medium → 8% / 29%; Hard → 0% / 57%. Trained checkpoints live under `OTA/results/` (gitignored). Full tables and options: [OTA/README.md](OTA/README.md).
-
----
-
-## Reproducibility
-
-### Software
-
-- Python 3.8+
-- PyTorch (install first, then remaining dependencies)
-
-The same stack (PyTorch, scipy, ortools, etc.) is used by POMO+PIP, OTA, and POMO+PD. For OTA and POMO+PD, see their READMEs for component-specific data paths and commands.
-
-From the repository root:
-
-```bash
-python -m venv venv
-source venv/bin/activate
-pip install --upgrade pip
-pip install torch torchvision torchaudio
-pip install scipy matplotlib tqdm pytz scikit-learn pandas wandb tensorboard_logger ortools
-```
-
-### Data
-
-TSPTW instances are stored under `data/TSPTW/tsptw{N}_{hardness}.pkl`. S-PIP uses the same layout (`env.problem = "TSPTW"`). Generate data from `POMO+PIP/`:
+Stochastic TSP with Time Windows (STSPTW) environment and POMO+PIP training/evaluation. All commands below are run from the **`POMO+PIP/`** directory.
 
 ```bash
 cd POMO+PIP
-python generate_data.py --problem TSPTW_SPIP --problem_size 10 --hardness hard --num_samples 10000 --dir ../data
 ```
-
-Use `--hardness easy` or `--hardness medium` for other difficulty levels. Output is written to `../data/TSPTW/tsptw10_{hardness}.pkl`.
-
-OTA uses its own data layout under `OTA/data/TSPTW/` (see [OTA/README.md](OTA/README.md)). POMO+PD uses TSPTW datasets; see [POMO+PD/Readme.md](POMO+PD/Readme.md) for generation and paths.
-
-### Seeds
-
-Training uses a fixed seed via `seed_everything(args.seed)`; the default is `--seed 2023` in [POMO+PIP/train.py](POMO+PIP/train.py). For reproducible validation under stochastic mode, the same process and seed are used; see the code for details.
 
 ---
 
-## Experimental Setup (Training and Evaluation)
+## Environments
 
-### Training
+### STSPTW (v1) (Realistic Version, Test later)
 
-Default S-PIP protocol:
+Defined in `envs/STSPTWEnv.py`. Uses a **time-dependent, additive delay** model:
 
-- Problem: **TSPTW_SPIP**, 10 nodes, hardness **easy** / **medium** / **hard**
-- 10,000 epochs; 10,000 train and 10,000 validation episodes; batch size 128; PI masking enabled
+```
+travel_time(i→j) = d_ij + delay_scale · base_delay(d_ij, current_time) · lognormal_factor(current_time)
+```
 
-**Deterministic S-PIP** (no travel-time noise):
+- Delay is always positive — **not mean-preserving** (expected travel time > d_ij)
+- Noise magnitude depends on **current_time**: two Gaussian rush-hour peaks at 30% and 70% of the time horizon inflate both the delay and its variance
+- Longer edges get proportionally more delay (via a saturating distance factor)
+- Controlled by `--delay_scale` (0.1 / 0.3 / 0.5 in sweep); effective CV ≈ 0.03–0.12
+
+### STSPTW v2 (Theoretical Version, Test first)
+
+Defined in `envs/STSPTWEnv_v2.py`. Uses **edge-level, time-independent, mean-preserving noise**:
+
+```
+travel_time(i→j) ~ F(mean=d_ij, CV=cv)
+```
+
+Two supported distributions (set via `--noise_type`):
+
+| `--noise_type` | Distribution | CV control |
+|---|---|---|
+| `gamma` | Gamma(k, k/d) with k = 1/CV² | `--cv` directly sets CV |
+| `two_point` | d·0.7 or d·1.3 with equal probability | fixed CV ≈ 0.3; `--cv` has no effect |
+
+- **Mean-preserving**: E[t] = d_ij exactly; noise cancels on average
+- **State-independent**: same distribution regardless of when the edge is traversed
+- `out_of_tw` lookahead uses deterministic distances (consistent and monotonic)
+- Substantially higher variance than v1: CV ∈ {0.25, 0.5, 1.0} vs v1's effective CV of 0.03–0.12
+
+### Key differences
+
+| | V1 (STSPTW) | V2 (STSPTW_v2) |
+|---|---|---|
+| Noise model | Additive delay on d | Multiplicative perturbation of d |
+| Mean-preserving | No (always slower) | Yes |
+| Time-dependent | Yes (rush hours) | No |
+| Control parameter | `--delay_scale` | `--cv` |
+| Effective CV range | 0.03 – 0.12 | 0.25 – 1.0 |
+| `out_of_tw` lookahead | Re-samples noisy travel | Uses deterministic d |
+
+### Pre- vs post-decision noise
+
+Both environments support:
+- **Post-decision** (default): noise is realized *after* the agent picks a node — the agent never sees it
+- **Pre-decision** (`--reveal_delay_before_action`): travel times to all candidates are sampled and revealed to the agent *before* action selection
+
+---
+
+## Model types
+
+| `--model_type` | LM reward | PIP mask | Run name suffix |
+|---|---|---|---|
+| `POMO` | no | no | *(none)* |
+| `POMO_STAR` | yes | no | `_LM` |
+| `POMO_STAR_PIP` | yes | yes (during training) | `_LM_PIMask_1Step` |
+
+**LM** = Lagrangian Multiplier: adds timeout penalty terms (`timeout_reward`, `timeout_node_reward`) to the reward signal, driving the model toward feasibility.
+**PIP** = Proactive Infeasibility Prevention: a 1-step deterministic lookahead mask applied at each action step to eliminate nodes that would make the remaining tour infeasible.
+
+PIP can also be applied **post-hoc at inference** on a `POMO_STAR` checkpoint (no retraining needed) by passing `--generate_PI_mask --pip_step 1` to `test.py`.
+
+---
+
+## Training
+
+Entry point: **`train.py`**
+
+**Example — STSPTW v1, n=10, hard, post-decision, POMO_STAR_PIP:**
 
 ```bash
-cd POMO+PIP
-python train.py --problem TSPTW_SPIP --problem_size 10 --hardness hard \
-  --epochs 10000 --train_episodes 10000 --val_episodes 10000 \
-  --train_batch_size 128 --generate_PI_mask
+python train.py --problem STSPTW --problem_size 10 --pomo_size 10 --hardness hard \
+  --model_type POMO_STAR_PIP --delay_scale 0.3 \
+  --epochs 10000 --train_episodes 10000 --train_batch_size 1024 \
+  --val_episodes 10000 --validation_batch_size 1000 --validation_interval 500 --model_save_interval 50
 ```
 
-**Stochastic S-PIP** (bounded noise):
+**Example — STSPTW v2, n=10, hard, gamma noise, CV=0.5, POMO_STAR_PIP:**
 
 ```bash
-python train.py --problem TSPTW_SPIP --problem_size 10 --hardness hard \
-  --epochs 10000 --train_episodes 10000 --val_episodes 10000 \
-  --train_batch_size 128 --generate_PI_mask --spip_stochastic_transition True
+python train.py --problem STSPTW_v2 --problem_size 10 --pomo_size 10 --hardness hard \
+  --model_type POMO_STAR_PIP --noise_type gamma --cv 0.5 \
+  --reveal_delay_before_action \
+  --epochs 10000 --train_episodes 10000 --train_batch_size 1024 \
+  --val_episodes 10000 --validation_batch_size 1000 --validation_interval 500 --model_save_interval 50
 ```
 
-Optional: `--spip_noise_dist {uniform|clipped_gaussian}`, `--spip_noise_bound`, `--spip_sigma0` (see table below).
+**Key training flags:**
 
-For **OTA** and **primal-dual** workflows (data, training, evaluation), see the [Primal-Dual (POMO+PD)](#primal-dual-pomopd) and [OTA (Offline Temporally-Abstracted)](#ota-offline-temporally-abstracted) sections above.
+| Flag | Meaning |
+|---|---|
+| `--problem` | `TSPTW`, `STSPTW` (v1), or `STSPTW_v2` |
+| `--model_type` | `POMO`, `POMO_STAR`, `POMO_STAR_PIP` |
+| `--delay_scale` | V1 noise magnitude (default `0.1`) |
+| `--noise_type` | V2 distribution: `gamma` or `two_point` |
+| `--cv` | V2 coefficient of variation (default `0.5`) |
+| `--reveal_delay_before_action` | Pre-decision noise (omit for post-decision) |
 
-### Evaluation
+Checkpoints are saved under `results/<run_name>/epoch-N.pt`. The run name encodes all key settings (problem, size, hardness, noise params, `_LM`, `_PIMask_1Step`).
+
+---
+
+## Evaluation
+
+Entry point: **`test.py`**
+
+**Example — evaluate POMO_STAR_PIP checkpoint on STSPTW v1:**
 
 ```bash
-cd POMO+PIP
-python test.py --problem TSPTW_SPIP --hardness hard --problem_size 10 --checkpoint path/to/model.pt
+python test.py --problem STSPTW --problem_size 10 --hardness hard \
+  --checkpoint results/<run_name>/epoch-10000.pt \
+  --delay_scale 0.3 --aug_factor 8 --no_opt_sol
 ```
 
-For custom test sets and optimality gaps: `--test_set_path` and `--test_set_opt_sol_path` (same interface as upstream PIP-constraint). OTA and primal-dual evaluation commands are in the [OTA](#ota-offline-temporally-abstracted) and [Primal-Dual (POMO+PD)](#primal-dual-pomopd) sections above.
-
----
-
-## S-PIP Hyperparameters
-
-
-| Parameter                    | Default   | Description                                                                                               |
-| ---------------------------- | --------- | --------------------------------------------------------------------------------------------------------- |
-| `spip_stochastic_transition` | `False`   | If `True`, realized travel = distance + bounded noise \xi.                                                |
-| `spip_noise_dist`            | `uniform` | Noise distribution: `uniform` or `clipped_gaussian`.                                                      |
-| `spip_noise_bound`           | `2.0`     | Bound on                                                                                                  |
-| `spip_sigma0`                | `0.3`     | Scale for Gaussian before clipping (used only for `clipped_gaussian`).                                    |
-| `spip_epsilon`               | `0.05`    | Used to compute z-factor \Phi^{-1}(1-\varepsilon) once at init for the path-level buffer in the PIP mask. |
-
-
----
-
-## Cluster and Optional Scripts
-
-For runs on the **Trillium** cluster, [trillium_scripts/setup_venv.sh](trillium_scripts/setup_venv.sh) sets up the environment; [trillium_scripts/run_train_spip_n10.sh](trillium_scripts/run_train_spip_n10.sh) and SLURM scripts (e.g. `run_spip_n10_*_cglee.slurm`) run the same training protocol. Account and paths are cluster-specific; account-specific scripts are listed in `.gitignore`.
-
-Example submissions from the repo root:
+**Example — evaluate POMO_STAR checkpoint with PIP applied post-hoc (v2, gamma):**
 
 ```bash
-# Hard, deterministic
-sbatch trillium_scripts/run_spip_n10_cglee.slurm
-
-# Hard, stochastic
-sbatch --export=ALL,STOCHASTIC=1,HARDNESS=hard trillium_scripts/run_spip_n10_cglee.slurm
-
-# Easy hardness
-sbatch trillium_scripts/run_spip_n10_easy_cglee.slurm
+python test.py --problem STSPTW_v2 --problem_size 10 --hardness hard \
+  --checkpoint results/<run_name>/epoch-10000.pt \
+  --noise_type gamma --cv 0.5 --reveal_delay_before_action \
+  --aug_factor 8 --no_opt_sol \
+  --generate_PI_mask --pip_step 1
 ```
 
+If `--test_set_path` is omitted, the default dataset under `../data/TSPTW/tsptw<N>_<hardness>.pkl` is used (both v1 and v2 use the same deterministic TSPTW instance files).
+
 ---
 
-## Citation
+## Using the Python API directly
 
-If you use this codebase in your research, please cite the original PIP paper:
+All commands above go through `train.py` / `test.py`. If you want to use the environments or model in a script or notebook, there are several non-obvious requirements.
 
-```text
-@inproceedings{
-    bi2024learning,
-    title={Learning to Handle Complex Constraints for Vehicle Routing Problems},
-    author={Bi, Jieyi and Ma, Yining and Zhou, Jianan and Song, Wen and Cao,
-    Zhiguang and Wu, Yaoxin and Zhang, Jie},
-    booktitle = {Advances in Neural Information Processing Systems},
-    year={2024}
-}
+### Environment API
+
+**Required constructor parameter: `k_sparse`**
+
+All three environments (`TSPTWEnv`, `STSPTWEnv`, `STSPTWEnv_v2`) accept `**env_params` and require `k_sparse` to be present. Set it to `problem_size + 1` to disable sparsification (use all neighbors):
+
+```python
+env_params = dict(
+    problem_size=10,
+    pomo_size=10,
+    hardness='hard',
+    k_sparse=11,          # required — set > problem_size to disable sparsification
+    device=torch.device('cpu'),
+)
 ```
 
-If you use the S-PIP extension in this repository, please also cite this codebase (and any associated paper or preprint, if applicable).
+**Correct call sequence: `load_problems` → `reset` → `pre_step` → loop `step`**
+
+```python
+env = TSPTWEnv(**env_params)
+problems = env.get_random_problems(batch_size, problem_size)
+env.load_problems(batch_size, problems=problems)
+reset_state, _, _ = env.reset()   # returns (reset_state, None, False)
+env.pre_step()
+
+done = False
+while not done:
+    # ... compute `selected` (shape: batch × pomo) ...
+    step_state, reward, done, infeasible = env.step(selected)
+    # reward is None until done=True
+```
+
+**`env.step()` returns 4 values, not 3**
+
+```python
+step_state, reward, done, infeasible = env.step(selected)
+# reward: (batch, pomo) tensor — only non-None when done=True
+# infeasible: (batch, pomo) bool tensor — True for any pomo that violated a TW
+```
+
+### Model API
+
+**`SINGLEModel` required parameters**
+
+Beyond the standard architecture params, the model requires several flags that `train.py` sets from CLI args:
+
+```python
+model_params = dict(
+    problem='TSPTW',          # or 'STSPTW', 'STSPTW_v2'
+    embedding_dim=128,
+    sqrt_embedding_dim=128**0.5,
+    encoder_layer_num=6,
+    qkv_dim=16,
+    head_num=8,
+    logit_clipping=10,
+    ff_hidden_dim=512,
+    eval_type='softmax',
+    model_type='POMO_STAR_PIP',
+    norm='instance',
+    norm_loc='norm_last',     # required — 'norm_first' or 'norm_last'
+    tw_normalize=True,        # required — normalize TW values by max TW end
+    pip_decoder=False,        # required — True only for auxiliary PIP decoder variant
+    W_q_sl=True,              # required — weight flags for selective attention
+    W_kv_sl=True,
+    W_out_sl=True,
+    device=torch.device('cpu'),
+)
+```
+
+**`model.forward()` requires `tw_end` for TSPTW problems**
+
+The decoder uses `tw_end` to normalize the current-time context feature. Pass `env.node_tw_end`:
+
+```python
+model.pre_forward(reset_state)
+env.pre_step()
+
+done = False
+while not done:
+    selected, prob = model(env.step_state, tw_end=env.node_tw_end)
+    step_state, reward, done, infeasible = env.step(selected)
+```
+
+### Minimal working example
+
+```python
+import torch
+from envs.TSPTWEnv import TSPTWEnv
+from models.SINGLEModel import SINGLEModel
+
+batch_size, n = 4, 10
+device = torch.device('cpu')
+
+env_params = dict(problem_size=n, pomo_size=n, hardness='hard', k_sparse=n+1, device=device)
+model_params = dict(
+    problem='TSPTW', embedding_dim=128, sqrt_embedding_dim=128**0.5,
+    encoder_layer_num=6, qkv_dim=16, head_num=8, logit_clipping=10,
+    ff_hidden_dim=512, eval_type='softmax', model_type='POMO_STAR_PIP',
+    norm='instance', norm_loc='norm_last', tw_normalize=True,
+    pip_decoder=False, W_q_sl=True, W_kv_sl=True, W_out_sl=True, device=device,
+)
+
+env = TSPTWEnv(**env_params)
+env.load_problems(batch_size, problems=env.get_random_problems(batch_size, n))
+reset_state, _, _ = env.reset()
+
+model = SINGLEModel(**model_params)
+model.pre_forward(reset_state)
+env.pre_step()
+
+done = False
+while not done:
+    selected, prob = model(env.step_state, tw_end=env.node_tw_end)
+    step_state, reward, done, infeasible = env.step(selected)
+
+print(reward.shape)      # (batch, pomo)
+print(infeasible.shape)  # (batch, pomo)
+```
+
+### Note on high infeasibility with random / untrained models
+
+With random actions or an untrained model on `hardness='hard'` instances, `infeasible` will be `True` for nearly all POMO rollouts. This is expected — hard instances have tight TW constraints that are almost impossible to satisfy without a trained policy.
 
 ---
 
-## Acknowledgements
+## Sweep experiments
 
-This project builds on and reuses code from:
+All sweep scripts live in `scripts/` and are run from the **project root** (`STSPTWenv/`).
 
-- [POMO](https://github.com/yd-kwon/POMO)
-- [Attention Model (AM)](https://github.com/wouterkool/attention-learn-to-route)
-- [GFACS](https://github.com/ai4co/gfacs)
-- [Routing-MVMoE](https://github.com/RoyalSkye/Routing-MVMoE)
-- [PIP-constraint](https://github.com/jieyibi/PIP-constraint)
+| Script | What it runs | Output CSV |
+|---|---|---|
+| `scripts/train/sweep_v1.sh` | 54 v1 training runs (SLURM array) | — |
+| `scripts/train/sweep_v2.sh` | 54 v2 training runs (SLURM array) | — |
+| `scripts/test/run_test_sweep_v1_v2.py` | Evaluate all 108 trained models | `results/csv/test_sweep_v1_v2.csv` |
+| `scripts/test/run_test_pomo_star_posthoc_pip.py` | POMO* checkpoints + PIP post-hoc | `results/csv/test_pomo_star_posthoc_pip.csv` |
 
----
+Submit test jobs via the corresponding `.sh` wrappers:
 
-## Troubleshooting and Known Issues
+```bash
+sbatch scripts/test/run_test_sweep_v1_v2.sh
+sbatch scripts/test/run_test_pomo_star_posthoc_pip.sh
+```
 
-- **tensorboard_logger and protobuf:** Newer `protobuf` versions can trigger `TypeError: Descriptors cannot be created directly.` This repository sets `PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python` in [POMO+PIP/train.py](POMO+PIP/train.py) and in the Trillium scripts, so no manual setting is needed for standard workflows.
-- **GPU memory:** Adjust `--train_batch_size`, `--aug_batch_size`, and `--test_batch_size` according to your GPU; defaults assume a reasonably large GPU as in the original PIP experiments.
-
+Plots are generated by scripts in `scripts/plot/` and saved to `results/figures/`.
