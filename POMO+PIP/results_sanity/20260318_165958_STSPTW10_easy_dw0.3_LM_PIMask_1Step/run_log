@@ -1,0 +1,45 @@
+[2026-03-18 16:59:59] utils.py(199) : >> Start STSPTW Training ...
+[2026-03-18 17:00:00] utils.py(199) : Number of Parameters: 1254144
+[2026-03-18 17:00:00] utils.py(199) : [copy_all_src] Warning: /scratch/hyegang/RL4Research/STSPTWenv/POMO+PIP/_ops.py not found. Skipping.
+[2026-03-18 17:00:00] utils.py(199) : [copy_all_src] Warning: /scratch/hyegang/RL4Research/STSPTWenv/POMO+PIP/_classes.py not found. Skipping.
+[2026-03-18 17:00:00] utils.py(199) : ================================================================================
+[2026-03-18 17:00:01] utils.py(199) : Epoch   1: Train (100%)  Score: 3.3399,  Loss: -0.8322,  Infeasible_rate: [49.8000%, 7.0000%], Timeout: 0.1604, Timeout_nodes: 0, Feasible_dist: 3.7091
+[2026-03-18 17:00:01] utils.py(199) : Epoch   1/ 10: Time Est.: Elapsed[0.01m], Remain[0.08m]
+[2026-03-18 17:00:01] utils.py(199) : >> Use PI masking for validation...
+[2026-03-18 17:00:02] utils.py(199) : >> Only feasible solutions are under consideration!
+[2026-03-18 17:00:02] utils.py(199) : >> Val Score on tsptw10_easy.pkl: NO_AUG_Score: [3.8884], --> AUG_Score: [3.3612]; Infeasible rate: 38.965% (solution-level), 2.344% (instance-level)
+[2026-03-18 17:00:02] utils.py(199) : ================================================================================
+[2026-03-18 17:00:02] utils.py(199) : Epoch   2: Train (100%)  Score: 3.5009,  Loss: -0.2966,  Infeasible_rate: [35.4000%, 4.0000%], Timeout: 0.1173, Timeout_nodes: 0, Feasible_dist: 3.7295
+[2026-03-18 17:00:02] utils.py(199) : Epoch   2/ 10: Time Est.: Elapsed[0.03m], Remain[0.11m]
+[2026-03-18 17:00:02] utils.py(199) : ================================================================================
+[2026-03-18 17:00:02] utils.py(199) : Epoch   3: Train (100%)  Score: 3.5844,  Loss: -0.2722,  Infeasible_rate: [21.6000%, 2.0000%], Timeout: 0.0179, Timeout_nodes: 0, Feasible_dist: 3.6633
+[2026-03-18 17:00:02] utils.py(199) : Epoch   3/ 10: Time Est.: Elapsed[0.03m], Remain[0.07m]
+[2026-03-18 17:00:02] utils.py(199) : ================================================================================
+[2026-03-18 17:00:02] utils.py(199) : Epoch   4: Train (100%)  Score: 3.5796,  Loss: -0.2323,  Infeasible_rate: [14.7000%, 2.0000%], Timeout: 0.0080, Timeout_nodes: 0, Feasible_dist: 3.6265
+[2026-03-18 17:00:02] utils.py(199) : Epoch   4/ 10: Time Est.: Elapsed[0.03m], Remain[0.05m]
+[2026-03-18 17:00:02] utils.py(199) : ================================================================================
+[2026-03-18 17:00:02] utils.py(199) : Epoch   5: Train (100%)  Score: 3.6368,  Loss: -0.1250,  Infeasible_rate: [17.9000%, 4.0000%], Timeout: 0.0231, Timeout_nodes: 0, Feasible_dist: 3.6761
+[2026-03-18 17:00:02] utils.py(199) : Epoch   5/ 10: Time Est.: Elapsed[0.04m], Remain[0.04m]
+[2026-03-18 17:00:02] utils.py(199) : >> Use PI masking for validation...
+[2026-03-18 17:00:03] utils.py(199) : >> Only feasible solutions are under consideration!
+[2026-03-18 17:00:03] utils.py(199) : >> Val Score on tsptw10_easy.pkl: NO_AUG_Score: [4.0382], --> AUG_Score: [3.4827]; Infeasible rate: 17.285% (solution-level), 0.0% (instance-level)
+[2026-03-18 17:00:03] utils.py(199) : ================================================================================
+[2026-03-18 17:00:03] utils.py(199) : Epoch   6: Train (100%)  Score: 3.6445,  Loss: -0.2240,  Infeasible_rate: [18.8000%, 4.0000%], Timeout: 0.0468, Timeout_nodes: 0, Feasible_dist: 3.7456
+[2026-03-18 17:00:03] utils.py(199) : Epoch   6/ 10: Time Est.: Elapsed[0.05m], Remain[0.04m]
+[2026-03-18 17:00:03] utils.py(199) : ================================================================================
+[2026-03-18 17:00:04] utils.py(199) : Epoch   7: Train (100%)  Score: 3.6119,  Loss: -0.2741,  Infeasible_rate: [13.4000%, 3.0000%], Timeout: 0.0351, Timeout_nodes: 0, Feasible_dist: 3.6796
+[2026-03-18 17:00:04] utils.py(199) : Epoch   7/ 10: Time Est.: Elapsed[0.06m], Remain[0.02m]
+[2026-03-18 17:00:04] utils.py(199) : ================================================================================
+[2026-03-18 17:00:04] utils.py(199) : Epoch   8: Train (100%)  Score: 3.6539,  Loss: -0.2546,  Infeasible_rate: [17.5000%, 5.0000%], Timeout: 0.0246, Timeout_nodes: 0, Feasible_dist: 3.6948
+[2026-03-18 17:00:04] utils.py(199) : Epoch   8/ 10: Time Est.: Elapsed[0.06m], Remain[0.01m]
+[2026-03-18 17:00:04] utils.py(199) : ================================================================================
+[2026-03-18 17:00:04] utils.py(199) : Epoch   9: Train (100%)  Score: 3.6258,  Loss: -0.2561,  Infeasible_rate: [14.5000%, 4.0000%], Timeout: 0.0113, Timeout_nodes: 0, Feasible_dist: 3.6842
+[2026-03-18 17:00:04] utils.py(199) : Epoch   9/ 10: Time Est.: Elapsed[0.06m], Remain[0.01m]
+[2026-03-18 17:00:04] utils.py(199) : ================================================================================
+[2026-03-18 17:00:04] utils.py(199) : Epoch  10: Train (100%)  Score: 3.5137,  Loss: -0.0959,  Infeasible_rate: [10.9000%, 2.0000%], Timeout: 0.0149, Timeout_nodes: 0, Feasible_dist: 3.5851
+[2026-03-18 17:00:04] utils.py(199) : Epoch  10/ 10: Time Est.: Elapsed[0.06m], Remain[0.00m]
+[2026-03-18 17:00:04] utils.py(199) : Saving trained_model
+[2026-03-18 17:00:04] utils.py(199) : >> Use PI masking for validation...
+[2026-03-18 17:00:05] utils.py(199) : >> Only feasible solutions are under consideration!
+[2026-03-18 17:00:05] utils.py(199) : >> Val Score on tsptw10_easy.pkl: NO_AUG_Score: [3.8822], --> AUG_Score: [3.4362]; Infeasible rate: 13.379% (solution-level), 0.0% (instance-level)
+[2026-03-18 17:00:05] utils.py(199) : >> Finish STSPTW Training ...

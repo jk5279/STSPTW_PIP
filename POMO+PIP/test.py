@@ -8,11 +8,23 @@ from utils import *
 
 
 def args2dict(args):
-    env_params = {"problem_size": args.problem_size, "pomo_size": args.pomo_size, "hardness": args.hardness,
-                  "pomo_start": args.pomo_start, "k_sparse": args.k_sparse,
-                  "spip_sigma0": getattr(args, "spip_sigma0", 0.3), "spip_epsilon": getattr(args, "spip_epsilon", 0.05),
-                  "spip_stochastic_transition": getattr(args, "spip_stochastic_transition", False),
-                  "spip_noise_bound": getattr(args, "spip_noise_bound", 2.0), "spip_noise_dist": getattr(args, "spip_noise_dist", "uniform")}
+    env_params = {
+        "problem_size": args.problem_size,
+        "pomo_size": args.pomo_size,
+        "hardness": args.hardness,
+        "pomo_start": args.pomo_start,
+        "k_sparse": args.k_sparse,
+        "delay_scale": getattr(args, "delay_scale", 0.1),
+        "time_scale": getattr(args, "time_scale", 10.0),
+        "reveal_delay_before_action": getattr(args, "reveal_delay_before_action", False),
+        # STSPTW_v2 params (ignored by other envs)
+        "noise_type": getattr(args, "noise_type", "gamma"),
+        "cv": getattr(args, "cv", 0.5),
+        "alpha": getattr(args, "alpha", 0.95),
+        "n_mc_samples": getattr(args, "n_mc_samples", 32),
+        "two_point_delta": getattr(args, "two_point_delta", 0.3),
+        "two_point_p": getattr(args, "two_point_p", 0.5),
+    }
 
     model_params = {
                     # original parameters in MvMOE for POMO
@@ -42,11 +54,26 @@ def args2dict(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Proactive Infeasibility Prevention (PIP) Framework for Routing Problems with Complex Constraints.")
     # env_params
-    parser.add_argument('--problem', type=str, default="TSPTW", choices=["TSPTW", "TSPTW_SPIP", "TSPDL"])
+    parser.add_argument('--problem', type=str, default="TSPTW", choices=["TSPTW", "STSPTW", "STSPTW_v2"])
     parser.add_argument('--hardness', type=str, default="hard", choices=["hard", "medium", "easy"], help="Different levels of constraint hardness")
     parser.add_argument('--problem_size', type=int, default=50)
     parser.add_argument('--pomo_size', type=int, default=1, help="the number of start node, should <= problem size")
     parser.add_argument('--pomo_start', type=bool, default=False)
+    parser.add_argument('--delay_scale', type=float, default=0.1, help="STSPTW delay weight (relative to deterministic travel)")
+    parser.add_argument('--time_scale', type=float, default=10.0, help="STSPTW pseudo time horizon for delay dynamics")
+    parser.add_argument(
+        '--reveal_delay_before_action',
+        action='store_true',
+        help='For STSPTW: if set, sample and reveal stochastic travel times before action selection (pre-decision noise).'
+    )
+    # STSPTW_v2 params
+    parser.add_argument('--noise_type', type=str, default='gamma', choices=['gamma', 'two_point'],
+                        help='STSPTW_v2: stochastic distribution family')
+    parser.add_argument('--cv', type=float, default=0.5, help='STSPTW_v2: coefficient of variation')
+    parser.add_argument('--alpha', type=float, default=0.95, help='STSPTW_v2: chance constraint level for MC PIP mask')
+    parser.add_argument('--n_mc_samples', type=int, default=32, help='STSPTW_v2: MC samples for PIP probability estimation')
+    parser.add_argument('--two_point_delta', type=float, default=0.3, help='STSPTW_v2: delta for two-point distribution')
+    parser.add_argument('--two_point_p', type=float, default=0.5, help='STSPTW_v2: p(low) for two-point distribution')
     # model_params
     parser.add_argument('--embedding_dim', type=int, default=128)
     parser.add_argument('--sqrt_embedding_dim', type=float, default=128 ** (1 / 2))
@@ -85,6 +112,7 @@ if __name__ == "__main__":
     parser.add_argument('--aug_batch_size', type=int, default=2500)
     parser.add_argument('--test_set_path', type=str, default=None, help="evaluate on default test dataset if None")
     parser.add_argument('--test_set_opt_sol_path', type=str, default=None, help="evaluate on default test dataset if None")
+    parser.add_argument('--no_opt_sol', action='store_true', help="do not load optimal solutions (skip gap computation)")
     parser.add_argument('--fsb_dist_only', type=bool, default=True)
     parser.add_argument('--output_best_tour_path', type=str, default=None)
     # settings (e.g., GPU)
@@ -95,18 +123,11 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     if args.test_set_path is None:
-        if args.problem == "TSPTW_SPIP":
-            args.test_set_path = f"../data/TSPTW/tsptw{args.problem_size}_{args.hardness}.pkl"
-        else:
-            args.test_set_path = f"../data/{args.problem}/{args.problem.lower()}{args.problem_size}_{args.hardness}.pkl"
-    if args.test_set_opt_sol_path is None:
-        if args.problem == "TSPTW_SPIP":
-            args.test_set_opt_sol_path = f"../data/TSPTW/lkh_tsptw{args.problem_size}_{args.hardness}.pkl"
-        else:
-            args.test_set_opt_sol_path = f"../data/{args.problem}/lkh_{args.problem.lower()}{args.problem_size}_{args.hardness}.pkl"
-    # If optimal-solution file does not exist, skip gap computation (run from POMO+PIP so ../data is repo data/)
-    if args.test_set_opt_sol_path is not None and not os.path.exists(args.test_set_opt_sol_path):
-        args.test_set_opt_sol_path = None
+        data_problem = "TSPTW" if args.problem in ("STSPTW", "STSPTW_v2") else args.problem
+        args.test_set_path = f"../data/{data_problem}/{data_problem.lower()}{args.problem_size}_{args.hardness}.pkl"
+    if args.test_set_opt_sol_path is None and not getattr(args, 'no_opt_sol', False):
+        data_problem = "TSPTW" if args.problem in ("STSPTW", "STSPTW_v2") else args.problem
+        args.test_set_opt_sol_path = f"../data/{data_problem}/lkh_{data_problem.lower()}{args.problem_size}_{args.hardness}.pkl"
     pp.pprint(vars(args))
     env_params, model_params, tester_params = args2dict(args)
     seed_everything(args.seed)
