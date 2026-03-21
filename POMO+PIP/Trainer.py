@@ -221,7 +221,7 @@ class Trainer:
                 if self.env_params['val_dataset'] is not None:
                     paths = self.env_params['val_dataset']
                     # STSPTW/STSPTW_v2 use TSPTW instance data (same nodes/TW)
-                    data_problem = "TSPTW" if self.args.problem in ("STSPTW", "STSPTW_v2") else self.args.problem
+                    data_problem = "TSPTW" if self.args.problem in ("STSPTW", "STSPTW_v2", "TSPTW_SPIP") else self.args.problem
                     dir = ["../data/{}/".format(data_problem)] * len(paths)
                     val_envs = [get_env(prob)[0] for prob in val_problems] * len(paths)
                 else:
@@ -528,12 +528,12 @@ class Trainer:
                 with torch.no_grad():
                     use_predicted_PI_mask = self.lazy_model(state, pomo=self.env_params["pomo_start"],
                                                             use_predicted_PI_mask = False, no_select_prob= True,
-                                                            tw_end = env.node_tw_end if self.problem in ["TSPTW", "STSPTW", "STSPTW_v2"] else None,
+                                                            tw_end = env.node_tw_end if self.problem in ["TSPTW", "TSPTW_SPIP", "STSPTW", "STSPTW_v2"] else None,
                                                             no_sigmoid = (self.trainer_params["sl_loss"] == "BCEWithLogitsLoss"))
             # Forward
             selected, prob = self.model(state, pomo=self.env_params["pomo_start"],
                                             use_predicted_PI_mask=use_predicted_PI_mask,
-                                            tw_end = env.node_tw_end if self.problem in ["TSPTW", "STSPTW", "STSPTW_v2"] else None,
+                                            tw_end = env.node_tw_end if self.problem in ["TSPTW", "TSPTW_SPIP", "STSPTW", "STSPTW_v2"] else None,
                                             no_sigmoid = (self.trainer_params["sl_loss"] == "BCEWithLogitsLoss"))
             # Calculate the loss for the PIP decoder
             if self.model_params['pip_decoder']:
@@ -736,10 +736,10 @@ class Trainer:
                 # print(use_predicted_PI_mask)
                 if self.model_params["pip_decoder"] and self.lazy_model is not None and not (self.is_train_pip_decoder) and env.selected_count >= 1:
                     use_predicted_PI_mask = self.lazy_model(state, pomo=self.env_params["pomo_start"],
-                                                            tw_end = env.node_tw_end if self.problem in ["TSPTW", "STSPTW", "STSPTW_v2"] else None,
+                                                            tw_end = env.node_tw_end if self.problem in ["TSPTW", "TSPTW_SPIP", "STSPTW", "STSPTW_v2"] else None,
                                                             use_predicted_PI_mask=False, no_select_prob=True)
                 selected, prob = self.model(state, pomo=self.env_params["pomo_start"],
-                                               tw_end = env.node_tw_end if self.problem in ["TSPTW", "STSPTW", "STSPTW_v2"] else None,
+                                               tw_end = env.node_tw_end if self.problem in ["TSPTW", "TSPTW_SPIP", "STSPTW", "STSPTW_v2"] else None,
                                                use_predicted_PI_mask=use_predicted_PI_mask)
                 # shape: (batch, pomo)
                 # state, reward, done, infeasible = env.step(selected,timeout_reward=self.trainer_params["timeout_reward"])
@@ -897,7 +897,7 @@ class Trainer:
         if compute_gap:
             opt_sol = load_dataset(sol_path, disable_print=True)[: val_episodes]
             # grid_factor = 1.
-            grid_factor = 100. if self.args.problem in ["TSPTW", "STSPTW", "STSPTW_v2"] else 1.
+            grid_factor = 100. if self.args.problem in ["TSPTW", "TSPTW_SPIP", "STSPTW", "STSPTW_v2"] else 1.
             opt_sol = torch.tensor([i[0]/grid_factor for i in opt_sol])
             if self.trainer_params["fsb_dist_only"]:
                 gap = (no_aug_score[no_aug_feasible.bool()] - opt_sol[no_aug_feasible.bool()]) / opt_sol[no_aug_feasible.bool()] * 100

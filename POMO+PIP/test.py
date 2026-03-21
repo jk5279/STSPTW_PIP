@@ -17,6 +17,10 @@ def args2dict(args):
         "delay_scale": getattr(args, "delay_scale", 0.1),
         "time_scale": getattr(args, "time_scale", 10.0),
         "reveal_delay_before_action": getattr(args, "reveal_delay_before_action", False),
+        # SPIP params (ignored by other envs)
+        "spip_sigma0": getattr(args, "spip_sigma0", 0.3), "spip_epsilon": getattr(args, "spip_epsilon", 0.05),
+        "spip_stochastic_transition": getattr(args, "spip_stochastic_transition", False),
+        "spip_noise_bound": getattr(args, "spip_noise_bound", 2.0), "spip_noise_dist": getattr(args, "spip_noise_dist", "uniform"),
         # STSPTW_v2 params (ignored by other envs)
         "noise_type": getattr(args, "noise_type", "gamma"),
         "cv": getattr(args, "cv", 0.5),
@@ -54,7 +58,7 @@ def args2dict(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Proactive Infeasibility Prevention (PIP) Framework for Routing Problems with Complex Constraints.")
     # env_params
-    parser.add_argument('--problem', type=str, default="TSPTW", choices=["TSPTW", "STSPTW", "STSPTW_v2"])
+    parser.add_argument('--problem', type=str, default="TSPTW", choices=["TSPTW", "TSPTW_SPIP", "STSPTW", "STSPTW_v2"])
     parser.add_argument('--hardness', type=str, default="hard", choices=["hard", "medium", "easy"], help="Different levels of constraint hardness")
     parser.add_argument('--problem_size', type=int, default=50)
     parser.add_argument('--pomo_size', type=int, default=1, help="the number of start node, should <= problem size")
@@ -74,6 +78,12 @@ if __name__ == "__main__":
     parser.add_argument('--n_mc_samples', type=int, default=32, help='STSPTW_v2: MC samples for PIP probability estimation')
     parser.add_argument('--two_point_delta', type=float, default=0.3, help='STSPTW_v2: delta for two-point distribution')
     parser.add_argument('--two_point_p', type=float, default=0.5, help='STSPTW_v2: p(low) for two-point distribution')
+    # SPIP params
+    parser.add_argument('--spip_sigma0', type=float, default=0.3, help="S-PIP noise scale (sigma0)")
+    parser.add_argument('--spip_epsilon', type=float, default=0.05, help="S-PIP confidence for z_factor")
+    parser.add_argument('--spip_stochastic_transition', type=bool, default=False, help="S-PIP: use bounded noise in transition")
+    parser.add_argument('--spip_noise_bound', type=float, default=2.0, help="S-PIP: bound on |xi| scale for bounded noise")
+    parser.add_argument('--spip_noise_dist', type=str, default="uniform", choices=["uniform", "clipped_gaussian"], help="S-PIP: noise distribution")
     # model_params
     parser.add_argument('--embedding_dim', type=int, default=128)
     parser.add_argument('--sqrt_embedding_dim', type=float, default=128 ** (1 / 2))
@@ -123,10 +133,10 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     if args.test_set_path is None:
-        data_problem = "TSPTW" if args.problem in ("STSPTW", "STSPTW_v2") else args.problem
+        data_problem = "TSPTW" if args.problem in ("STSPTW", "STSPTW_v2", "TSPTW_SPIP") else args.problem
         args.test_set_path = f"../data/{data_problem}/{data_problem.lower()}{args.problem_size}_{args.hardness}.pkl"
     if args.test_set_opt_sol_path is None and not getattr(args, 'no_opt_sol', False):
-        data_problem = "TSPTW" if args.problem in ("STSPTW", "STSPTW_v2") else args.problem
+        data_problem = "TSPTW" if args.problem in ("STSPTW", "STSPTW_v2", "TSPTW_SPIP") else args.problem
         args.test_set_opt_sol_path = f"../data/{data_problem}/lkh_{data_problem.lower()}{args.problem_size}_{args.hardness}.pkl"
     pp.pprint(vars(args))
     env_params, model_params, tester_params = args2dict(args)
