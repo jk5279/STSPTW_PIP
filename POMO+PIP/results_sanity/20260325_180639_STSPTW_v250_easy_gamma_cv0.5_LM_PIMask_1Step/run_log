@@ -1,0 +1,24 @@
+[2026-03-25 18:06:39] utils.py(199) : >> Start STSPTW_v2 Training ...
+[2026-03-25 18:06:43] utils.py(199) : Number of Parameters: 1254144
+[2026-03-25 18:06:43] utils.py(199) : [copy_all_src] Warning: /scratch/hyegang/RL4Research/STSPTW_PIP/POMO+PIP/_ops.py not found. Skipping.
+[2026-03-25 18:06:43] utils.py(199) : [copy_all_src] Warning: /scratch/hyegang/RL4Research/STSPTW_PIP/POMO+PIP/_classes.py not found. Skipping.
+[2026-03-25 18:06:43] utils.py(199) : ================================================================================
+[2026-03-25 18:06:45] utils.py(199) : Epoch   1: Train (100%)  Score: 15.9273,  Loss: -485.9338,  Infeasible_rate: [99.5800%, 92.0000%], Timeout: 12.0446, Timeout_nodes: 5, Feasible_dist: 18.8565
+[2026-03-25 18:06:45] utils.py(199) : Epoch   1/  3: Time Est.: Elapsed[0.04m], Remain[0.07m]
+[2026-03-25 18:06:45] utils.py(199) : >> Use PI masking for validation...
+[2026-03-25 18:06:47] utils.py(199) : >> Only feasible solutions are under consideration!
+[2026-03-25 18:06:47] utils.py(199) : >> Val Score on tsptw50_easy.pkl: NO_AUG_Score: [17.6715], NO_AUG_Gap: [141.8748]% --> AUG_Score: [17.4647], AUG_Gap: [141.7892]%; Infeasible rate: 90.723% (solution-level), 51.389% (instance-level)
+[2026-03-25 18:06:47] utils.py(199) : ================================================================================
+[2026-03-25 18:06:48] utils.py(199) : Epoch   2: Train (100%)  Score: 16.9353,  Loss: -238.3892,  Infeasible_rate: [94.9600%, 51.0000%], Timeout: 1.3621, Timeout_nodes: 2, Feasible_dist: 19.3146
+[2026-03-25 18:06:48] utils.py(199) : Epoch   2/  3: Time Est.: Elapsed[0.07m], Remain[0.04m]
+[2026-03-25 18:06:48] utils.py(199) : >> Use PI masking for validation...
+[2026-03-25 18:06:49] utils.py(199) : >> Only feasible solutions are under consideration!
+[2026-03-25 18:06:49] utils.py(199) : >> Val Score on tsptw50_easy.pkl: NO_AUG_Score: [19.5775], NO_AUG_Gap: [169.1674]% --> AUG_Score: [18.7586], AUG_Gap: [159.0902]%; Infeasible rate: 73.969% (solution-level), 20.66% (instance-level)
+[2026-03-25 18:06:49] utils.py(199) : ================================================================================
+[2026-03-25 18:06:49] utils.py(199) : Epoch   3: Train (100%)  Score: 17.8663,  Loss: -70.2017,  Infeasible_rate: [80.7200%, 17.0000%], Timeout: 0.2989, Timeout_nodes: 0, Feasible_dist: 19.7686
+[2026-03-25 18:06:49] utils.py(199) : Epoch   3/  3: Time Est.: Elapsed[0.11m], Remain[0.00m]
+[2026-03-25 18:06:49] utils.py(199) : Saving trained_model
+[2026-03-25 18:06:49] utils.py(199) : >> Use PI masking for validation...
+[2026-03-25 18:06:51] utils.py(199) : >> Only feasible solutions are under consideration!
+[2026-03-25 18:06:51] utils.py(199) : >> Val Score on tsptw50_easy.pkl: NO_AUG_Score: [21.9576], NO_AUG_Gap: [205.429]% --> AUG_Score: [20.373], AUG_Gap: [181.019]%; Infeasible rate: 55.859% (solution-level), 7.899% (instance-level)
+[2026-03-25 18:06:51] utils.py(199) : >> Finish STSPTW_v2 Training ...

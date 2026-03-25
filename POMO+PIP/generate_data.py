@@ -12,6 +12,7 @@ if __name__ == "__main__":
     parser.add_argument('--num_samples', type=int, default=10000)
     parser.add_argument('--seed', type=int, default=2025)
     parser.add_argument('--dir', type=str, default="./data")
+    parser.add_argument('--prefix', type=str, default="", help="filename prefix, e.g. 'test_' to write test_tsptw50_easy.pkl")
     parser.add_argument('--no_cuda', action='store_true', default=True)
     parser.add_argument('--gpu_id', type=int, default=0)
 
@@ -34,9 +35,9 @@ if __name__ == "__main__":
     for env in envs:
         env = env(**env_params)
         if args.problem in ["ALL", "TSPTW", "TSPTW_SPIP", "TSPDL"]:
-            dataset_path = os.path.join(args.dir, env.problem, "{}{}_{}.pkl".format(env.problem.lower(), args.problem_size, args.hardness))
+            dataset_path = os.path.join(args.dir, env.problem, "{}{}{}_{}.pkl".format(args.prefix, env.problem.lower(), args.problem_size, args.hardness))
         else:
-            dataset_path = os.path.join(args.dir, env.problem, "{}{}_uniform.pkl".format(env.problem.lower(), args.problem_size))
+            dataset_path = os.path.join(args.dir, env.problem, "{}{}{}_uniform.pkl".format(args.prefix, env.problem.lower(), args.problem_size))
 
         env.generate_dataset(args.num_samples, args.problem_size, dataset_path)
         # sanity check

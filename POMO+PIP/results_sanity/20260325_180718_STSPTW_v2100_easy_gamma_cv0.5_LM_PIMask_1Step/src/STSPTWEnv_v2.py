@@ -85,8 +85,6 @@ class STSPTWEnv_v2:
         # Pre-decision noise: sample and reveal travel times before action
         self.reveal_delay_before_action = env_params.get('reveal_delay_before_action', False)
         self.pre_sampled_pairwise_travel = None
-        # Fixed (N,N) travel-time matrix loaded from pre-sampled test data (optional)
-        self.pre_sampled_travel_matrix = None
 
         # Problem data (set at load_problems)
         self.batch_size = None
@@ -187,12 +185,8 @@ class STSPTWEnv_v2:
                       aug_factor=1, normalize=True):
         from . import TSPTWEnv
 
-        travel_matrix = None
         if problems is not None:
-            if len(problems) == 5:
-                node_xy, service_time, tw_start, tw_end, travel_matrix = problems
-            else:
-                node_xy, service_time, tw_start, tw_end = problems
+            node_xy, service_time, tw_start, tw_end = problems
         else:
             node_xy, service_time, tw_start, tw_end = \
                 self.get_random_problems(batch_size, self.problem_size,
@@ -220,15 +214,6 @@ class STSPTWEnv_v2:
                 tw_end = tw_end.repeat(8, 1)
             else:
                 raise NotImplementedError
-            # Pre-sampled matrix is tied to original coordinates; invalid after
-            # spatial augmentation (rotations/reflections change distances).
-            travel_matrix = None
-
-        # Store pre-sampled travel matrix (None when training or aug_factor>1)
-        if travel_matrix is not None:
-            self.pre_sampled_travel_matrix = travel_matrix.to(self.device)
-        else:
-            self.pre_sampled_travel_matrix = None
 
         self.node_xy = node_xy
         self.node_service_time = service_time
@@ -390,33 +375,15 @@ class STSPTWEnv_v2:
         self.step_state.current_coord = self.current_coord
 
         if self.reveal_delay_before_action:
-            if self.pre_sampled_travel_matrix is not None:
-                # Use fixed (N,N) matrix: look up the current node's row.
-                # mat[b, from_node, :] gives all travel times from that node.
-                mat = self.pre_sampled_travel_matrix  # (batch, N, N)
-                if self.current_node is None:
-                    # First step: all POMO paths depart from depot (node 0)
-                    row = mat[:, 0, :]  # (batch, N)
-                    self.pre_sampled_pairwise_travel = row[:, None, :].expand(
-                        -1, self.pomo_size, -1)
-                else:
-                    # current_node: (batch, pomo)
-                    # result[b, p, j] = mat[b, current_node[b,p], j]
-                    b_idx = self.BATCH_IDX  # (batch, pomo), values in [0, batch)
-                    self.pre_sampled_pairwise_travel = mat[
-                        b_idx, self.current_node, :]  # (batch, pomo, N)
-            else:
-                # Fall back to online sampling (training or aug_factor>1)
-                current_coord = self.current_coord
-                if current_coord.size(1) == 1 and self.pomo_size > 1:
-                    current_coord = current_coord.expand(-1, self.pomo_size, -1)
-                pairwise_dist = (
-                    current_coord[:, :, None, :]
-                    - self.node_xy[:, None, :, :].expand(
-                        -1, self.pomo_size, -1, -1)
-                ).norm(p=2, dim=-1)
-                self.pre_sampled_pairwise_travel = self._sample_travel_time(
-                    pairwise_dist)
+            # Pre-decision: sample stochastic travel times for all edges
+            current_coord = self.current_coord
+            if current_coord.size(1) == 1 and self.pomo_size > 1:
+                current_coord = current_coord.expand(-1, self.pomo_size, -1)
+            pairwise_dist = (
+                current_coord[:, :, None, :]
+                - self.node_xy[:, None, :, :].expand(-1, self.pomo_size, -1, -1)
+            ).norm(p=2, dim=-1)
+            self.pre_sampled_pairwise_travel = self._sample_travel_time(pairwise_dist)
             self.step_state.next_travel_time = self.pre_sampled_pairwise_travel
         else:
             self.step_state.next_travel_time = None
@@ -689,11 +656,6 @@ class STSPTWEnv_v2:
         service_time = [i[1] for i in data]
         tw_start = [i[2] for i in data]
         tw_end = [i[3] for i in data]
-        if len(data[0]) == 5:
-            # Pre-sampled stochastic travel matrix (test data only)
-            travel_matrix = np.array([i[4] for i in data], dtype=np.float32)
-            return (torch.Tensor(node_xy), torch.Tensor(service_time),
-                    torch.Tensor(tw_start), torch.Tensor(tw_end),
-                    torch.Tensor(travel_matrix))
-        return (torch.Tensor(node_xy), torch.Tensor(service_time),
+        data = (torch.Tensor(node_xy), torch.Tensor(service_time),
                 torch.Tensor(tw_start), torch.Tensor(tw_end))
+        return data
