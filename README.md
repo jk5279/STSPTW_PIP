@@ -6,6 +6,8 @@ Stochastic TSP with Time Windows (STSPTW) environment and POMO+PIP training/eval
 cd POMO+PIP
 ```
 
+> **Reproducibility:** All STSPTW_v2 evaluations use `--test_noise_seed 42`. The N×N stochastic travel-time matrix is generated on-the-fly from this seed at test time — no separate noise file is needed. All model types (POMO, POMO_STAR, POMO_STAR_PIP) see identical noise realizations for fair comparison.
+
 ---
 
 ## Environments

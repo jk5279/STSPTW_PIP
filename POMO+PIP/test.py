@@ -28,6 +28,7 @@ def args2dict(args):
         "n_mc_samples": getattr(args, "n_mc_samples", 32),
         "two_point_delta": getattr(args, "two_point_delta", 0.3),
         "two_point_p": getattr(args, "two_point_p", 0.5),
+        "test_noise_seed": getattr(args, "test_noise_seed", 42),
     }
 
     model_params = {
@@ -78,6 +79,8 @@ if __name__ == "__main__":
     parser.add_argument('--n_mc_samples', type=int, default=32, help='STSPTW_v2: MC samples for PIP probability estimation')
     parser.add_argument('--two_point_delta', type=float, default=0.3, help='STSPTW_v2: delta for two-point distribution')
     parser.add_argument('--two_point_p', type=float, default=0.5, help='STSPTW_v2: p(low) for two-point distribution')
+    parser.add_argument('--test_noise_seed', type=int, default=42,
+                        help='STSPTW_v2: seed for pre-sampling fixed N×N travel-time matrix at test time (ensures identical noise across models)')
     # SPIP params
     parser.add_argument('--spip_sigma0', type=float, default=0.3, help="S-PIP noise scale (sigma0)")
     parser.add_argument('--spip_epsilon', type=float, default=0.05, help="S-PIP confidence for z_factor")
