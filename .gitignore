@@ -22,6 +22,7 @@ POMO+PIP/__pycache__/
 POMO+PIP/envs/__pycache__/
 POMO+PIP/models/__pycache__/
 POMO+PIP/results/
+POMO+PIP/results_sanity/
 POMO+PIP/data/
 POMO+PIP/*.log
 
