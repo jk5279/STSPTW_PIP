@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-POMO_PIP_DIR = Path(os.environ.get("POMO_PIP_DIR", SCRIPT_DIR / "POMO+PIP")).resolve()
+POMO_PIP_DIR = Path(os.environ.get("POMO_PIP_DIR", SCRIPT_DIR.parent.parent.parent / "POMO+PIP")).resolve()
 assert POMO_PIP_DIR.is_dir(), f"POMO+PIP dir not found: {POMO_PIP_DIR}"
 
 # 90 configs: (hardness, model_type, delay_weight); delay_weight 0.1 .. 1.0 step 0.1
@@ -118,7 +118,7 @@ def main():
     if args.limit:
         configs = configs[: args.limit]
 
-    out_csv = SCRIPT_DIR / "../../results/csv/test_stsptw_matched.csv"
+    out_csv = SCRIPT_DIR / "../../../results/csv/test_stsptw_matched.csv"
     total = len(configs)
 
     if args.dry_run:

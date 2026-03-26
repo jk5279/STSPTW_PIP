@@ -10,9 +10,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-# Default: script lives in STSPTWenv, so POMO+PIP is STSPTWenv/POMO+PIP
 SCRIPT_DIR = Path(__file__).resolve().parent
-POMO_PIP_DIR = Path(os.environ.get("POMO_PIP_DIR", SCRIPT_DIR / "POMO+PIP")).resolve()
+POMO_PIP_DIR = Path(os.environ.get("POMO_PIP_DIR", SCRIPT_DIR.parent.parent.parent / "POMO+PIP")).resolve()
 assert POMO_PIP_DIR.is_dir(), f"POMO+PIP dir not found: {POMO_PIP_DIR}"
 
 # 9 TSPTW checkpoints: (hardness, model_type, path_suffix)
@@ -127,7 +126,7 @@ def main():
         delay_values = delay_values[: args.limit_dw]
     configs = TSPTW_CONFIGS if not args.limit_models else TSPTW_CONFIGS[: args.limit_models]
 
-    out_csv = SCRIPT_DIR / "../../results/csv/test_tsptw_on_stsptw_dw_sweep.csv"
+    out_csv = SCRIPT_DIR / "../../../results/csv/test_tsptw_on_stsptw_dw_sweep.csv"
     total = len(configs) * len(delay_values)
     run_idx = 0
 
