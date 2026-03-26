@@ -150,7 +150,21 @@ python ../scripts/test/run_test_v2.py
 sbatch scripts/test/run_test_v2.sh
 ```
 
-`run_test_v2.py` automatically finds all trained checkpoints under `results/sweep_v2_n{N}/`, runs each with `--test_noise_seed 42` hardcoded, and reports results. Noise seed 42 is fixed for all models — no argument needed.
+`run_test_v2.py` expects checkpoints to be under `results/sweep_v2_n{N}/` following the sweep naming convention. It picks the most recently modified `.pt` file in each matching directory, or use `--checkpoint_name` to specify the filename explicitly. For each model, `test.py` reports:
+
+- `score` — average tour length (no augmentation)
+- `aug_score` — average tour length with augmentation
+- `Sol-Infeasible_rate` — fraction of solutions that violated at least one TW
+- `Ins-Infeasible_rate` — fraction of instances where all POMO rollouts were infeasible
+
+Noise seed 42 is fixed for all models — no argument needed.
+
+By default it picks the most recently modified `.pt` file in each run directory. Override with `--checkpoint_name` if your checkpoints follow a specific naming convention:
+
+```bash
+python ../scripts/test/run_test_v2.py --checkpoint_name epoch-10000.pt
+python ../scripts/test/run_test_v2.py --checkpoint_name fsb_accuracy_bsf.pt
+```
 
 ---
 

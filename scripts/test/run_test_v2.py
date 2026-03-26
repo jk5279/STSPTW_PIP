@@ -31,13 +31,14 @@ NOISE_TYPES = ["gamma", "two_point"]
 CVS         = [0.25, 0.5, 1.0]
 
 
-def find_checkpoint(run_dir):
-    for name in ["train_fsb_bsf.pt", "epoch-10000.pt"]:
-        p = os.path.join(run_dir, name)
-        if os.path.exists(p):
-            return p
-    candidates = sorted(glob(os.path.join(run_dir, "epoch-*.pt")))
-    return candidates[-1] if candidates else None
+def find_checkpoint(run_dir, checkpoint_name=None):
+    if checkpoint_name:
+        p = os.path.join(run_dir, checkpoint_name)
+        return p if os.path.exists(p) else None
+    candidates = glob(os.path.join(run_dir, "*.pt"))
+    if not candidates:
+        return None
+    return max(candidates, key=os.path.getmtime)
 
 
 def main():
@@ -46,6 +47,9 @@ def main():
     parser.add_argument("--hardness",                nargs="+", default=HARDNESS)
     parser.add_argument("--noise_types",             nargs="+", default=NOISE_TYPES)
     parser.add_argument("--cvs",         type=float, nargs="+", default=CVS)
+    parser.add_argument("--checkpoint_name", type=str, default=None,
+                        help="Checkpoint filename to use (e.g. 'epoch-10000.pt'). "
+                             "If omitted, picks the most recently modified .pt file.")
     args = parser.parse_args()
 
     skipped, ran = [], []
@@ -70,7 +74,7 @@ def main():
                         continue
 
                     for run_dir in run_dirs:
-                        ckpt = find_checkpoint(run_dir)
+                        ckpt = find_checkpoint(run_dir, args.checkpoint_name)
                         if ckpt is None:
                             skipped.append(f"{run_dir} (no checkpoint)")
                             continue
