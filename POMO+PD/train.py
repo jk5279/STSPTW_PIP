@@ -12,7 +12,15 @@ from utils import *
 def args2dict(args):
     env_params = {"problem_size": args.problem_size, "pomo_size": args.pomo_size, "hardness": args.hardness,
                   "pomo_start": args.pomo_start, "val_dataset": args.val_dataset, "val_episodes": args.val_episodes,
-                  "k_sparse": args.k_sparse}
+                  "k_sparse": args.k_sparse, "delay_scale": getattr(args, "delay_scale", 0.1),
+                  "reveal_delay_before_action": getattr(args, "reveal_delay_before_action", False),
+                  # STSPTW_v2 params (ignored by other envs)
+                  "noise_type": getattr(args, "noise_type", "gamma"),
+                  "cv": getattr(args, "cv", 0.5),
+                  "alpha": getattr(args, "alpha", 0.95),
+                  "n_mc_samples": getattr(args, "n_mc_samples", 32),
+                  "two_point_delta": getattr(args, "two_point_delta", 0.3),
+                  "two_point_p": getattr(args, "two_point_p", 0.5),}
 
     model_params = {
                     # original parameters in MvMOE for POMO
@@ -63,12 +71,22 @@ def args2dict(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Primal-dual approach for stochastic TSP with time windows")
     # env_params
-    parser.add_argument('--problem', type=str, default="TSPTW", choices=["TSPTW", "TSPDL"])
+    parser.add_argument('--problem', type=str, default="TSPTW", choices=["TSPTW", "STSPTW", "STSPTW_v2"])
     parser.add_argument('--hardness', type=str, default="hard", choices=["hard", "medium", "easy"], help="Different levels of constraint hardness")
     parser.add_argument('--problem_size', type=int, default=50)
     parser.add_argument('--pomo_size', type=int, default=10, help="the number of start node, should <= problem size")
     parser.add_argument('--pomo_start', type=bool, default=False)
     parser.add_argument('--val_dataset', type=str, nargs='+', default=None, help="use the default one if set to None")
+    parser.add_argument('--delay_scale', type=float, default=0.1, help='STSPTW delay weight (relative to deterministic travel)')
+    parser.add_argument('--reveal_delay_before_action', action='store_true', help='For STSPTW: if set, sample and reveal stochastic travel times before action selection (pre-decision noise).')
+    # STSPTW_v2 params
+    parser.add_argument('--noise_type', type=str, default='gamma', choices=['gamma', 'two_point'],
+                        help='STSPTW_v2: stochastic distribution family')
+    parser.add_argument('--cv', type=float, default=0.5, help='STSPTW_v2: coefficient of variation (0 = deterministic)')
+    parser.add_argument('--alpha', type=float, default=0.95, help='STSPTW_v2: chance constraint level for MC PIP mask')
+    parser.add_argument('--n_mc_samples', type=int, default=32, help='STSPTW_v2: MC samples for PIP probability estimation')
+    parser.add_argument('--two_point_delta', type=float, default=0.3, help='STSPTW_v2: delta for two-point distribution')
+    parser.add_argument('--two_point_p', type=float, default=0.5, help='STSPTW_v2: p(low) for two-point distribution')
 
     # model_params
     parser.add_argument('--embedding_dim', type=int, default=128)
@@ -163,17 +181,24 @@ if __name__ == "__main__":
     seed_everything(args.seed)
 
     if args.val_dataset is None:
-        args.val_dataset = [f"{args.problem.lower()}{args.problem_size}_{args.hardness}.pkl"]
+        if args.problem in ("STSPTW", "STSPTW_v2"):
+            args.val_dataset = [f"tsptw{args.problem_size}_{args.hardness}.pkl"]
+        else:
+            args.val_dataset = [f"{args.problem.lower()}{args.problem_size}_{args.hardness}.pkl"]
 
     # set log
     run_name = f"_{args.problem}{args.problem_size}_{args.hardness}"
+    if args.problem == "STSPTW":
+        run_name += f"_dw{getattr(args, 'delay_scale', 0.1)}"
+    if args.problem == "STSPTW_v2":
+        run_name += f"_{args.noise_type}_cv{args.cv}"
     if args.timeout_reward:
         run_name += "_LM"
     if args.generate_PI_mask:
         run_name += f"_PIMask_{args.pip_step}Step"
     if args.pip_decoder:
         run_name += f"_PIPDecoder_UpdateFrequency_{args.simulation_stop_epoch}_{args.pip_update_interval}_{args.pip_update_epoch}_{args.pip_last_growup}"
-    process_start_time = datetime.now(pytz.timezone("Asia/Singapore"))
+    process_start_time = datetime.now(pytz.timezone("America/Toronto"))
     if args.resume_path is not None:
         args.log_path = args.resume_path
     else:

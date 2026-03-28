@@ -30,9 +30,10 @@ class SINGLEModel(nn.Module):
         # shape: (batch, problem+1, EMBEDDING_DIM)
 
     def pre_forward(self, reset_state):
-        if not self.problem.startswith('TSP'):
-            depot_xy = reset_state.depot_xy
-            # shape: (batch, 1, 2)
+        # CVRP variants use depot_xy / node_demand;
+        # TSP variants (TSPTW, STSPTW, etc.) leave depot_xy=None.
+        if self.problem in ["CVRP", "OVRP", "VRPB", "VRPL", "VRPBL", "OVRPB", "OVRPL", "OVRPBL"]:
+            depot_xy = reset_state.depot_xy  # (batch, 1, 2)
             node_demand = reset_state.node_demand
         else:
             depot_xy = None
@@ -43,7 +44,7 @@ class SINGLEModel(nn.Module):
         if self.problem in ["CVRP", "OVRP", "VRPB", "VRPL", "VRPBL", "OVRPB", "OVRPL", "OVRPBL"]:
             feature = torch.cat((node_xy, node_demand[:, :, None]), dim=2)
             # shape: (batch, problem, 3)
-        elif self.problem in ["TSPTW"]:
+        elif self.problem in ["TSPTW", "STSPTW", "STSPTW_v2"]:
             node_tw_start = reset_state.node_tw_start
             node_tw_end = reset_state.node_tw_end
             # shape: (batch, problem)
@@ -138,7 +139,7 @@ class SINGLEModel(nn.Module):
             attr = state.load[:, :, None]
         elif self.problem in ["VRPB", 'TSPDL']:
             attr = state.load[:, :, None]  # shape: (batch, pomo, 1)
-        elif self.problem in ["TSPTW"]:
+        elif self.problem in ["TSPTW", "STSPTW", "STSPTW_v2"]:
             attr = state.current_time[:, :, None]  # shape: (batch, pomo, 1)
             if self.model_params["tw_normalize"]:
                 attr = attr / tw_end[:, 0][:, None, None]
@@ -195,7 +196,7 @@ class SINGLE_Encoder(nn.Module):
             self.embedding_depot = nn.Linear(2, embedding_dim)
         if self.problem in ["CVRP", "OVRP", "VRPB", "VRPL", "VRPBL", "OVRPB", "OVRPL", "OVRPBL"]:
             self.embedding_node = nn.Linear(3, embedding_dim)
-        elif self.problem in ["TSPTW", "TSPDL"]:
+        elif self.problem in ["TSPTW", "STSPTW", "STSPTW_v2", "TSPDL"]:
             self.embedding_node = nn.Linear(4, embedding_dim)
         elif self.problem in ["VRPTW", "OVRPTW", "VRPBTW", "VRPLTW", "OVRPBTW", "OVRPLTW", "VRPBLTW", "OVRPBLTW"]:
             self.embedding_node = nn.Linear(5, embedding_dim)
@@ -292,7 +293,7 @@ class SINGLE_Decoder(nn.Module):
             self.Wq_last = nn.Linear(embedding_dim + 1, head_num * qkv_dim, bias=False)
             if self.model_params["pip_decoder"]:
                 self.Wq_last_sl = nn.Linear(embedding_dim + 1, head_num * qkv_dim, bias=False)
-        elif self.problem in ["VRPB", "TSPTW", "TSPDL"]:
+        elif self.problem in ["VRPB", "TSPTW", "STSPTW", "STSPTW_v2", "TSPDL"]:
             self.Wq_last = nn.Linear(embedding_dim + 1, head_num * qkv_dim, bias=False)
             if self.model_params["pip_decoder"]:
                 self.Wq_last_sl = nn.Linear(embedding_dim + 1, head_num * qkv_dim, bias=False)

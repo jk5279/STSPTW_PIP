@@ -190,11 +190,11 @@ class Tester:
             #     # use when not training the lazy PIP-D model
             #     with torch.no_grad():
             #         use_predicted_PI_mask = self.lazy_model(state, pomo=self.env_params["pomo_start"],
-            #                                       tw_end=env.node_tw_end if self.args.problem == "TSPTW" else None,
+            #                                       tw_end=env.node_tw_end if self.args.problem in ["TSPTW", "STSPTW", "STSPTW_v2"] else None,
             #                                       use_predicted_PI_mask=False, no_select_prob=True,
             #                                       no_sigmoid=True)
             selected, prob = self.model(state, pomo=self.env_params["pomo_start"],
-                                                      tw_end=env.node_tw_end if self.args.problem == "TSPTW" else None,
+                                                      tw_end=env.node_tw_end if self.args.problem in ["TSPTW", "STSPTW", "STSPTW_v2"] else None,
                                                       use_predicted_PI_mask=use_predicted_PI_mask, no_sigmoid=True)
             # shape: (batch, pomo)
             state, reward, done, infeasible = env.step(selected,
