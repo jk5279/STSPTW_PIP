@@ -96,6 +96,16 @@ class Trainer:
             if self.trainer_params["load_optimizer"]:
                 self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
                 print(">> Optimizer (Epoch: {}) Loaded (lr = {})!".format(checkpoint['epoch'], self.optimizer.param_groups[0]['lr']))
+            if "scheduler_state_dict" in checkpoint:
+                try:
+                    self.scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+                    print(">> Scheduler state loaded.")
+                except Exception as e:
+                    print(">> Warning: could not load scheduler state: {}".format(e))
+            if isinstance(checkpoint.get("result_log"), dict):
+                self.result_log = checkpoint["result_log"]
+                print(">> Restored result_log from checkpoint (val history length: {}).".format(
+                    len(self.result_log.get("val_score", []))))
             print(">> Checkpoint (Epoch: {}) Loaded!".format(checkpoint['epoch']))
             print(">> Load from {}".format(checkpoint_fullname))
 
@@ -892,7 +902,7 @@ class Trainer:
         except Exception:
             sol_path = os.path.join(dir, "lkh_" + val_path)
 
-        compute_gap = os.path.exists(sol_path)
+        compute_gap = (not self.trainer_params.get("no_opt_sol", False)) and os.path.exists(sol_path)
 
         if compute_gap:
             opt_sol = load_dataset(sol_path, disable_print=True)[: val_episodes]

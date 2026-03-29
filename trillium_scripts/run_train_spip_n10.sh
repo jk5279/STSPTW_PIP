@@ -14,7 +14,8 @@ DATA_DIR="${REPO_DIR}/data"
 # Hardness level: easy / medium / hard (default: hard)
 HARDNESS="${HARDNESS:-hard}"
 # Validation file: generate_data with TSPTW_SPIP writes to TSPTW/ (env.problem = "TSPTW")
-VAL_DATA_FILE="${DATA_DIR}/TSPTW/tsptw10_${HARDNESS}.pkl"
+VAL_DATA_FILE="${DATA_DIR}/TSPTW/tsptw10_${HARDNESS}_val.pkl"
+VAL_SEED="${VAL_SEED:-2027}"
 LOG_BASE="${REPO_DIR}/POMO+PIP/results"
 SAVED_MODELS_BASE="${REPO_DIR}/POMO+PIP/saved_models"
 
@@ -36,7 +37,7 @@ fi
 EPOCHS=10000
 TRAIN_EPISODES=10000
 VAL_EPISODES=10000
-TRAIN_BATCH_SIZE="${TRAIN_BATCH_SIZE:-128}"
+TRAIN_BATCH_SIZE="${TRAIN_BATCH_SIZE:-256}"
 MODEL_SAVE_INTERVAL=50
 VALIDATION_INTERVAL=500
 PROBLEM_SIZE=10
@@ -64,7 +65,7 @@ if [ -f "$VAL_DATA_FILE" ]; then
   echo ">> Validation data exists, skipping generation"
 else
   python generate_data.py --problem TSPTW_SPIP --problem_size "$PROBLEM_SIZE" --hardness "$HARDNESS" \
-    --num_samples "$GEN_SAMPLES" --dir "$DATA_DIR"
+    --num_samples "$GEN_SAMPLES" --seed "$VAL_SEED" --suffix "_val" --dir "$DATA_DIR"
 fi
 
 # Train
@@ -81,6 +82,7 @@ TRAIN_OPTS=(
   --validation_interval "$VALIDATION_INTERVAL"
   --generate_PI_mask
   --log_dir "$LOG_SUBDIR"
+  --val_dataset "tsptw10_${HARDNESS}_val.pkl"
 )
 if [ "$STOCHASTIC" = "1" ]; then
   TRAIN_OPTS+=(--spip_stochastic_transition True)
