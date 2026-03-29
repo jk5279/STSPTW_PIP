@@ -1,9 +1,22 @@
 # STSPTWenv
 
-Stochastic TSP with Time Windows (STSPTW) environment and POMO+PIP training/evaluation. All commands below are run from the **`POMO+PIP/`** directory.
+Stochastic TSP with Time Windows (STSPTW) environment and src training/evaluation. All commands below are run from the **`src/`** directory.
 
 ```bash
-cd POMO+PIP
+cd src
+```
+
+## Repository Structure
+
+```text
+STSPTW_PIP/
+├── src/                  # main source: training, testing, envs, models
+├── baselines/            # AM+PIP reference implementation; LKH and OR-Tools solvers
+├── scripts/              # analysis utilities and local test runners
+├── trillium_scripts/     # Slurm launchers and cluster setup for DRAC/Trillium
+├── docs/                 # design notes and data generation documentation
+├── data/                 # generated instance files (gitignored)
+└── results/              # experiment outputs (gitignored)
 ```
 
 ---
@@ -143,7 +156,7 @@ If `--test_set_path` is omitted, the default dataset under `../data/TSPTW/tsptw<
 
 ```bash
 # Interactive
-cd POMO+PIP
+cd src
 python ../scripts/test/run_test_v2.py
 
 # SLURM

@@ -6,7 +6,7 @@ Loops over all (N, hardness, noise_type, cv, model) configs, finds the
 matching checkpoint under results/sweep_v2_n{N}/, and evaluates with a
 fixed noise seed so all models see identical noise realizations.
 
-Run from STSPTW_PIP/POMO+PIP/:
+Run from STSPTW_PIP/src/:
     python ../scripts/test/run_test_v2.py
     python ../scripts/test/run_test_v2.py --sizes 50 100
 """

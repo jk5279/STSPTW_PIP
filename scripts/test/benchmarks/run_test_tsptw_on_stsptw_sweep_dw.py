@@ -2,7 +2,7 @@
 """
 Test 9 TSPTW-trained models on STSPTW env with delay_scale sweep 0.01 ~ 1.0 (step 0.01).
 Total: 9 × 100 = 900 experiments. Results written to CSV.
-Run from project root (STSPTWenv), or set POMO_PIP_DIR to POMO+PIP directory.
+Run from project root (STSPTWenv), or set POMO_PIP_DIR to src directory.
 """
 import os
 import re
@@ -11,8 +11,8 @@ import sys
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-POMO_PIP_DIR = Path(os.environ.get("POMO_PIP_DIR", SCRIPT_DIR.parent.parent.parent / "POMO+PIP")).resolve()
-assert POMO_PIP_DIR.is_dir(), f"POMO+PIP dir not found: {POMO_PIP_DIR}"
+POMO_PIP_DIR = Path(os.environ.get("POMO_PIP_DIR", SCRIPT_DIR.parent.parent.parent / "src")).resolve()
+assert POMO_PIP_DIR.is_dir(), f"src dir not found: {POMO_PIP_DIR}"
 
 # 9 TSPTW checkpoints: (hardness, model_type, path_suffix)
 # path_suffix: "" -> *_TSPTW10_{h}/, "_LM" -> *_TSPTW10_{h}_LM/, "_LM_PIMask_1Step" -> *_TSPTW10_{h}_LM_PIMask_1Step/
@@ -143,7 +143,7 @@ def main():
         cmd = [sys.executable, "test.py", "--problem", "STSPTW", "--problem_size", "10", "--hardness", h, "--checkpoint", str(ckpt), "--reveal_delay_before_action", "--delay_scale", f"{dw:.2f}", "--no_opt_sol", "--aug_factor", "8"]
         if mt == "POMO_STAR_PIP":
             cmd += ["--generate_PI_mask", "--pip_step", "1"]
-        print("Example cmd (from POMO+PIP):", " ".join(cmd))
+        print("Example cmd (from src):", " ".join(cmd))
         return
 
     with open(out_csv, "w", newline="") as f:

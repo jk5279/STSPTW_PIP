@@ -10,7 +10,7 @@ Checkpoint directory mapping:
 
 Checkpoint selection: trained_model_best.pt if present, else highest-numbered epoch-*.pt.
 
-Run from POMO+PIP/:
+Run from src/:
     python ../scripts/test/run_test_spip.py
     python ../scripts/test/run_test_spip.py --sizes 100
     python ../scripts/test/run_test_spip.py --sizes 10 --hardness easy

@@ -1,6 +1,6 @@
 import sys, os
-# OTA/ is a sibling of POMO+PIP/ — add both to path
-_PIP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'POMO+PIP')
+# OTA/ is a sibling of src/ — add both to path
+_PIP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src')
 _OTA_DIR = os.path.dirname(os.path.abspath(__file__))
 for _d in (_PIP_DIR, _OTA_DIR):
     if _d not in sys.path:

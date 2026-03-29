@@ -29,7 +29,7 @@ else
   PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 fi
 ENV_DIR="${ENV_DIR:-${PROJECT_DIR}/venv}"
-POMO_PIP_DIR="${PROJECT_DIR}/POMO+PIP"
+POMO_PIP_DIR="${PROJECT_DIR}/src"
 
 module purge 2>/dev/null || true
 module load StdEnv/2023

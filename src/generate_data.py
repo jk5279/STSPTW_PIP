@@ -5,7 +5,7 @@ from utils import *
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate datasets")
-    parser.add_argument('--problem', type=str, default="ALL", choices=["ALL", "TSPTW", "TSPTW_SPIP", "TSPDL"])
+    parser.add_argument('--problem', type=str, default="ALL", choices=["ALL", "TSPTW_SPIP"])
     parser.add_argument('--problem_size', type=int, default=50)
     parser.add_argument('--pomo_size', type=int, default=50, help="the number of start node, should <= problem size")
     parser.add_argument('--hardness', type=str, default="hard", choices=["hard", "medium", "easy"], help="Different levels of constraint hardness")
@@ -34,7 +34,7 @@ if __name__ == "__main__":
     envs = get_env(args.problem)
     for env in envs:
         env = env(**env_params)
-        if args.problem in ["ALL", "TSPTW", "TSPTW_SPIP", "TSPDL"]:
+        if args.problem in ["ALL", "TSPTW_SPIP"]:
             dataset_path = os.path.join(
                 args.dir,
                 env.problem,

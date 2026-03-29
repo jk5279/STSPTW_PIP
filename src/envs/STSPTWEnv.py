@@ -159,21 +159,22 @@ class STSPTWEnv:
         return self.delay_scale * delay
 
     def get_random_problems(self, batch_size, problem_size, coord_factor=100, max_tw_size=100):
-        """Delegate to TSPTWEnv so Trainer can call env.get_random_problems(batch_size, problem_size)."""
-        from . import TSPTWEnv
-        temp = TSPTWEnv.TSPTWEnv(
+        """Delegate to TSPTWEnv_SPIP for the same TSPTW instance distribution (plain TSPTW env removed)."""
+        from . import TSPTWEnv_SPIP
+        temp = TSPTWEnv_SPIP.TSPTWEnv_SPIP(
             problem_size=problem_size,
             pomo_size=self.pomo_size,
             hardness=self.hardness,
             device=self.device,
             loc_scaler=self.loc_scaler,
+            k_sparse=self.env_params.get("k_sparse", problem_size),
         )
         return temp.get_random_problems(batch_size, problem_size, coord_factor=coord_factor, max_tw_size=max_tw_size)
 
     # -------- core env API (mirrors TSPTWEnv) --------
 
     def load_problems(self, batch_size, problems=None, aug_factor=1, normalize=True):
-        from . import TSPTWEnv
+        from . import TSPTWEnv_SPIP
 
         if problems is not None:
             node_xy, service_time, tw_start, tw_end = problems
@@ -194,7 +195,7 @@ class STSPTWEnv:
         if aug_factor > 1:
             if aug_factor == 8:
                 self.batch_size = self.batch_size * 8
-                node_xy = TSPTWEnv.TSPTWEnv.augment_xy_data_by_8_fold(dg, node_xy)
+                node_xy = TSPTWEnv_SPIP.TSPTWEnv_SPIP.augment_xy_data_by_8_fold(dg, node_xy)
                 service_time = service_time.repeat(8, 1)
                 tw_start = tw_start.repeat(8, 1)
                 tw_end = tw_end.repeat(8, 1)

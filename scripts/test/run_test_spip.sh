@@ -21,7 +21,7 @@ if [ -n "${SLURM_SUBMIT_DIR:-}" ]; then
 else
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-  POMO_PIP_DIR="${PROJECT_DIR}/POMO+PIP"
+  POMO_PIP_DIR="${PROJECT_DIR}/src"
 fi
 ENV_DIR="${ENV_DIR:-${PROJECT_DIR}/venv}"
 

@@ -60,7 +60,7 @@ def args2dict(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Proactive Infeasibility Prevention (PIP) Framework for Routing Problems with Complex Constraints.")
     # env_params
-    parser.add_argument('--problem', type=str, default="TSPTW", choices=["TSPTW", "TSPTW_SPIP", "STSPTW", "STSPTW_v2"])
+    parser.add_argument('--problem', type=str, default="STSPTW", choices=["TSPTW_SPIP", "STSPTW", "STSPTW_v2"])
     parser.add_argument('--hardness', type=str, default="hard", choices=["hard", "medium", "easy"], help="Different levels of constraint hardness")
     parser.add_argument('--problem_size', type=int, default=50)
     parser.add_argument('--pomo_size', type=int, default=1, help="the number of start node, should <= problem size")

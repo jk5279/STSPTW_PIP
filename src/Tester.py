@@ -61,17 +61,12 @@ class Tester:
         for env_class in self.envs:
             start_time = time.time()
             if self.tester_params['test_set_path'] is None or self.tester_params['test_set_path'].endswith(".pkl"):
-                compute_gap = False
                 compute_gap = not (self.tester_params['test_set_path'] is not None and self.tester_params['test_set_opt_sol_path'] is None)
                 scores, aug_scores, sol_infeasible_rate, ins_infeasible_rate = self._test(env_class, compute_gap=compute_gap)
             else:
                 results = []
                 for i, path in enumerate(self.path_list):
-                    if self.args.problem == "TSPDL":
-                        no_aug_score, aug_score, ins_infeasible_rate, sol_infeasible_rate = self._solve_tspdllib(path, env_class)
-                        name = path.split('/')[-1].split('.pkl')[0]
-                        results.append([name, no_aug_score, aug_score, ins_infeasible_rate, sol_infeasible_rate])
-                    elif self.args.problem == "TSPTW":
+                    if self.args.problem == "TSPTW_SPIP":
                         no_aug_score, aug_score, ins_infeasible_rate, sol_infeasible_rate = self._solve_tsptwlib(path, env_class)
                         name = path.split('/')[-1].split('.pkl')[0]
                         results.append([name, no_aug_score, aug_score, ins_infeasible_rate, sol_infeasible_rate])
@@ -91,13 +86,16 @@ class Tester:
         scores, aug_scores = torch.zeros(0).to(self.device), torch.zeros(0).to(self.device)
         no_aug_feasibles, aug_feasibles = torch.zeros(0).to(self.device), torch.zeros(0).to(self.device)
         opt_sols = torch.zeros(0).to(self.device)
-        episode, test_num_episode = 0, self.tester_params['test_episodes']
+        start_ep = int(self.tester_params.get('test_episode_start', 0))
+        num_episodes = int(self.tester_params['test_episodes'])
+        end_ep = start_ep + num_episodes
+        episode = start_ep
 
         data_path = self.tester_params['test_set_path'] if self.tester_params['test_set_path'] \
             else os.path.join(self.data_dir, env.problem, "{}{}_uniform.pkl".format(env.problem.lower(), env.problem_size))
 
-        while episode < test_num_episode:
-            remaining = test_num_episode - episode
+        while episode < end_ep:
+            remaining = end_ep - episode
             batch_size = min(self.tester_params['test_batch_size'], remaining)
             data = env.load_dataset(data_path, offset=episode, num_samples=batch_size)
             score, aug_score, all_score, all_aug_score, sol_infeasible_rate, ins_infeasible_rate, no_aug_feasible, aug_feasible = self._test_one_batch(data, env)
@@ -110,13 +108,13 @@ class Tester:
             no_aug_feasibles = torch.cat((no_aug_feasibles, no_aug_feasible), dim=0)
             aug_feasibles = torch.cat((aug_feasibles, aug_feasible), dim=0)
 
-            compute_gap = False
+            # compute_gap = False
             if compute_gap:
                 opt_sol_path = self.tester_params['test_set_opt_sol_path'] if self.tester_params['test_set_opt_sol_path'] \
                     else get_opt_sol_path(os.path.join(self.data_dir, env.problem), env.problem, env.problem_size)
                 print(">> Load optimal solution path: {}".format(opt_sol_path))
                 opt_sol = load_dataset(opt_sol_path, disable_print=True)[episode: episode + batch_size]  # [(obj, route), ...]
-                opt_sol = [i[0] /100 for i in opt_sol] if self.args.problem=="TSPTW" else [i[0]  for i in opt_sol]
+                opt_sol = [i[0] /100 for i in opt_sol] if self.args.problem == "TSPTW_SPIP" else [i[0]  for i in opt_sol]
                 opt_sols = torch.cat((opt_sols, torch.tensor(opt_sol).float()), dim=0)
                 if self.tester_params['fsb_dist_only']:
                     gap, aug_gap = [], []
@@ -137,11 +135,12 @@ class Tester:
 
             episode += batch_size
 
-            elapsed_time_str, remain_time_str = self.time_estimator.get_est_string(episode, test_num_episode)
-            print("episode {:3d}/{:3d}, Elapsed[{}], Remain[{}], score:{:.3f}, aug_score:{:.3f}, Sol-Infeasible_rate: {:.3f}, Ins-Infeasible_rate: {:.3f}".format(
-                episode, test_num_episode, elapsed_time_str, remain_time_str, score, aug_score, sol_infeasible_rate, ins_infeasible_rate))
+            done_in_run = episode - start_ep
+            elapsed_time_str, remain_time_str = self.time_estimator.get_est_string(done_in_run, num_episodes)
+            print("episode {:3d}/{:3d} (global {:5d}), Elapsed[{}], Remain[{}], score:{:.3f}, aug_score:{:.3f}, Sol-Infeasible_rate: {:.3f}, Ins-Infeasible_rate: {:.3f}".format(
+                done_in_run, num_episodes, episode, elapsed_time_str, remain_time_str, score, aug_score, sol_infeasible_rate, ins_infeasible_rate))
 
-            all_done = (episode == test_num_episode)
+            all_done = (episode == end_ep)
 
             if all_done:
                 print(" \n*** Test Done on {} *** ".format(env.problem))
@@ -190,12 +189,12 @@ class Tester:
             #     # use when not training the lazy PIP-D model
             #     with torch.no_grad():
             #         use_predicted_PI_mask = self.lazy_model(state, pomo=self.env_params["pomo_start"],
-            #                                       tw_end=env.node_tw_end if self.args.problem == "TSPTW" else None,
+            #                                       tw_end=env.node_tw_end if self.args.problem in ["TSPTW", "TSPTW_SPIP", "STSPTW", "STSPTW_v2"] else None,
             #                                       use_predicted_PI_mask=False, no_select_prob=True,
             #                                       no_sigmoid=True)
             selected, prob = self.model(state, pomo=self.env_params["pomo_start"],
-                                                      tw_end=env.node_tw_end if self.args.problem == "TSPTW" else None,
-                                                      use_predicted_PI_mask=use_predicted_PI_mask, no_sigmoid=True)
+                                        tw_end=env.node_tw_end if self.args.problem in ["TSPTW_SPIP", "STSPTW", "STSPTW_v2"] else None,
+                                        use_predicted_PI_mask=use_predicted_PI_mask, no_sigmoid=True)
             # shape: (batch, pomo)
             state, reward, done, infeasible = env.step(selected,
                                                        generate_PI_mask=self.model_params["generate_PI_mask"],
@@ -228,8 +227,6 @@ class Tester:
                     write_pkl_file(tour_path, test_data)
                 else:
                     add_data_to_pkl(tour_path, test_data, env.problem_size)
-                    updated_data = read_pkl_file(tour_path, env.problem_size)
-                    print("data size: ", updated_data[0].size())
 
             aug_score_mean = -fsb_aug[aug_feasible.bool()].mean()
             no_aug_score, aug_score = -fsb_no_aug, -fsb_aug
@@ -264,41 +261,6 @@ class Tester:
         tw_start = tw_start/loc_scaler
 
         data = (node_xy, service_time, tw_start, tw_end)
-        no_aug_score, aug_score, _, _, sol_infeasible_rate, ins_infeasible_rate, _, _ = self._test_one_batch(data, env)
-        # no_aug_score = torch.Tensor([no_aug_score])
-        # aug_score = torch.Tensor([aug_score])
-        # no_aug_score = torch.round(torch.Tensor([no_aug_score]) ).long()
-        # aug_score = torch.round(torch.Tensor([aug_score]) ).long()
-        no_aug_score = torch.round(torch.Tensor([no_aug_score]) * loc_scaler).long()
-        aug_score = torch.round(torch.Tensor([aug_score]) * loc_scaler).long()
-
-        print(">> Finish solving {} -> no_aug: {} aug: {} ins_infsb {} sol_infsb {}".format(path, no_aug_score.item(), aug_score.item(),ins_infeasible_rate.item(), sol_infeasible_rate.item()))
-
-        return no_aug_score.item(), aug_score.item(),ins_infeasible_rate.item(), sol_infeasible_rate.item()
-
-    def _solve_tspdllib(self, path, env_class):
-        with open(path, 'rb') as f:
-            data = pickle.load(f)
-            # print(">> Load data from {}".format(path))
-        node_xy, node_demand, node_draft_limit = torch.Tensor(data[0]).unsqueeze(0), torch.Tensor(data[1]).unsqueeze(0), torch.Tensor(data[2]).unsqueeze(0)
-        # loc_scaler = node_xy.max().item()
-        # print(node_xy.max().item() , loc_scaler)
-        # node_xy = node_xy /loc_scaler
-        loc_scaler = 1
-
-        env_params = {'problem_size': node_xy.size(1), 'pomo_size': node_xy.size(1), 'loc_scaler': loc_scaler,
-                      'device': self.device, "dl_percent":None, "reverse":None, "original_lib_xy": node_xy}
-        env = env_class(**env_params)
-        # print(node_xy.size())
-
-        min_xy = node_xy.min(dim=1)[0].unsqueeze(1)
-        max_xy = node_xy.max(dim=1)[0].unsqueeze(1)
-        node_xy = (node_xy - min_xy) / (max_xy - min_xy)
-
-        # node_xy = (node_xy - node_xy.min()) / (node_xy.max() - node_xy.min())
-        # print(node_xy.max())
-
-        data = (node_xy, node_demand, node_draft_limit)
         no_aug_score, aug_score, _, _, sol_infeasible_rate, ins_infeasible_rate, _, _ = self._test_one_batch(data, env)
         # no_aug_score = torch.Tensor([no_aug_score])
         # aug_score = torch.Tensor([aug_score])

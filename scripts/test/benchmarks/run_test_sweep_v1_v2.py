@@ -12,8 +12,8 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent.parent.parent
-POMO_PIP_DIR = Path(os.environ.get("POMO_PIP_DIR", PROJECT_ROOT / "POMO+PIP")).resolve()
-assert POMO_PIP_DIR.is_dir(), f"POMO+PIP dir not found: {POMO_PIP_DIR}"
+POMO_PIP_DIR = Path(os.environ.get("POMO_PIP_DIR", PROJECT_ROOT / "src")).resolve()
+assert POMO_PIP_DIR.is_dir(), f"src dir not found: {POMO_PIP_DIR}"
 
 RESULTS_DIR = POMO_PIP_DIR / "results"
 SWEEP_V1_DIR = RESULTS_DIR / "sweep_v1"

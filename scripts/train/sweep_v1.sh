@@ -24,7 +24,7 @@ module load cuda/12.6
 module load python/3.11.5
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 
-cd "$SCRATCH/RL4Research/STSPTWenv/POMO+PIP"
+cd "$SCRATCH/RL4Research/STSPTWenv/src"
 
 # ---- Parameter grid ----
 HARDNESS_LIST=(easy medium hard)     # 3

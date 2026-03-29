@@ -6,7 +6,7 @@ Comparison between the data generation approach described in the target methodol
 
 ## Overview
 
-- **Layer 1 (deterministic TSPTW instances):** Both use the official PIP (Bi et al., NeurIPS 2024) data generator as the backbone — `POMO+PIP/envs/TSPTWEnv.py` is identical to the PIP-constraint repo, so Layer 1 matches exactly.
+- **Layer 1 (deterministic TSPTW instances):** Both use the official PIP (Bi et al., NeurIPS 2024) data generator as the backbone — `src/envs/TSPTWEnv.py` is identical to the PIP-constraint repo, so Layer 1 matches exactly.
 
 - **Layer 2 (stochastic overlay):** The methodology uses Gamma and two-point distributions with explicit CV control. This repo's v1 env (`STSPTWEnv`) instead uses a time- and distance-dependent lognormal-like delay controlled by `delay_scale`. The v2 env (`STSPTWEnv_v2`) matches the methodology design.
 
