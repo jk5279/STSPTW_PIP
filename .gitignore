@@ -29,12 +29,18 @@ POMO+PIP/*.log
 # Large external data
 data/
 
-# Logs (slurm output, etc.)
-logs/slurm/*.out
+# Logs (slurm output, local run logs)
+logs/
+
+# Job / cluster stdout and stderr
+*.err
+*.out
+
+# Local backups and artifacts
+.backup_data/
 
 # Results (regenerable)
-results/figures/*.png
-results/csv/*.csv
+results/
 
 # Checkpoints
 **/trained_model_*.pt

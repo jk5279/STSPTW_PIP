@@ -90,13 +90,16 @@ class Tester:
         scores, aug_scores = torch.zeros(0).to(self.device), torch.zeros(0).to(self.device)
         no_aug_feasibles, aug_feasibles = torch.zeros(0).to(self.device), torch.zeros(0).to(self.device)
         opt_sols = torch.zeros(0).to(self.device)
-        episode, test_num_episode = 0, self.tester_params['test_episodes']
+        start_ep = int(self.tester_params.get('test_episode_start', 0))
+        num_episodes = int(self.tester_params['test_episodes'])
+        end_ep = start_ep + num_episodes
+        episode = start_ep
 
         data_path = self.tester_params['test_set_path'] if self.tester_params['test_set_path'] \
             else os.path.join(self.data_dir, env.problem, "{}{}_uniform.pkl".format(env.problem.lower(), env.problem_size))
 
-        while episode < test_num_episode:
-            remaining = test_num_episode - episode
+        while episode < end_ep:
+            remaining = end_ep - episode
             batch_size = min(self.tester_params['test_batch_size'], remaining)
             data = env.load_dataset(data_path, offset=episode, num_samples=batch_size)
             score, aug_score, all_score, all_aug_score, sol_infeasible_rate, ins_infeasible_rate, no_aug_feasible, aug_feasible = self._test_one_batch(data, env)
@@ -136,11 +139,12 @@ class Tester:
 
             episode += batch_size
 
-            elapsed_time_str, remain_time_str = self.time_estimator.get_est_string(episode, test_num_episode)
-            print("episode {:3d}/{:3d}, Elapsed[{}], Remain[{}], score:{:.3f}, aug_score:{:.3f}, Sol-Infeasible_rate: {:.3f}, Ins-Infeasible_rate: {:.3f}".format(
-                episode, test_num_episode, elapsed_time_str, remain_time_str, score, aug_score, sol_infeasible_rate, ins_infeasible_rate))
+            done_in_run = episode - start_ep
+            elapsed_time_str, remain_time_str = self.time_estimator.get_est_string(done_in_run, num_episodes)
+            print("episode {:3d}/{:3d} (global {:5d}), Elapsed[{}], Remain[{}], score:{:.3f}, aug_score:{:.3f}, Sol-Infeasible_rate: {:.3f}, Ins-Infeasible_rate: {:.3f}".format(
+                done_in_run, num_episodes, episode, elapsed_time_str, remain_time_str, score, aug_score, sol_infeasible_rate, ins_infeasible_rate))
 
-            all_done = (episode == test_num_episode)
+            all_done = (episode == end_ep)
 
             if all_done:
                 print(" \n*** Test Done on {} *** ".format(env.problem))
@@ -227,8 +231,6 @@ class Tester:
                     write_pkl_file(tour_path, test_data)
                 else:
                     add_data_to_pkl(tour_path, test_data, env.problem_size)
-                    updated_data = read_pkl_file(tour_path, env.problem_size)
-                    print("data size: ", updated_data[0].size())
 
             aug_score_mean = -fsb_aug[aug_feasible.bool()].mean()
             no_aug_score, aug_score = -fsb_no_aug, -fsb_aug

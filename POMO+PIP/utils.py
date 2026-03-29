@@ -94,9 +94,10 @@ def seed_everything(seed=2023):
     torch.cuda.manual_seed_all(seed)
 
 def get_env(problem):
-    from envs import TSPDLEnv, TSPTWEnv, STSPTWEnv, STSPTWEnv_v2
+    from envs import TSPDLEnv, TSPTWEnv, TSPTWEnv_SPIP, STSPTWEnv, STSPTWEnv_v2
     all_problems = {
         'TSPTW': TSPTWEnv.TSPTWEnv,
+        'TSPTW_SPIP': TSPTWEnv_SPIP.TSPTWEnv_SPIP,
         'TSPDL': TSPDLEnv.TSPDLEnv,
         'STSPTW': STSPTWEnv.STSPTWEnv,
         'STSPTW_v2': STSPTWEnv_v2.STSPTWEnv_v2,
@@ -110,6 +111,8 @@ def get_env(problem):
 def get_opt_sol_path(dir, problem, size, hardness):
     if problem in ["TSPTW", "TSPDL"]:
         return os.path.join(dir, f"lkh_{problem.lower()}{size}_{hardness}.pkl")
+    elif problem == "TSPTW_SPIP":
+        return os.path.join(dir, f"lkh_tsptw{size}_{hardness}.pkl")
     elif problem in ("STSPTW", "STSPTW_v2"):
         return os.path.join(dir, f"lkh_tsptw{size}_{hardness}.pkl")
     else:
@@ -142,11 +145,8 @@ def num_param(model):
 
 
 def check_null_hypothesis(a, b):
-    print(len(a), a)
-    print(len(b), b)
     alpha_threshold = 0.05
     t, p = ttest_rel(a, b)  # Calc p value
-    print(t, p)
     p_val = p / 2  # one-sided
     # assert t < 0, "T-statistic should be negative"
     print("p-value: {}".format(p_val))

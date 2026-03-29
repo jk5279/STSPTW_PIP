@@ -46,6 +46,7 @@ def args2dict(args):
                     }
 
     tester_params = {"checkpoint": args.checkpoint, "test_episodes": args.test_episodes,
+                     "test_episode_start": getattr(args, "test_episode_start", 0),
                      "test_batch_size": args.test_batch_size, "sample_size": args.sample_size,
                      "aug_factor": args.aug_factor, "aug_batch_size": args.aug_batch_size,
                      "test_set_path": args.test_set_path, "test_set_opt_sol_path": args.test_set_opt_sol_path,
@@ -118,6 +119,8 @@ if __name__ == "__main__":
     parser.add_argument('--checkpoint', type=str, default="pretrained/TSPTW/tsptw50_hard/POMO_star_PIP-D/epoch-10000.pt")
     parser.add_argument('--pip_checkpoint', type=str, default=None)
     parser.add_argument('--test_episodes', type=int, default=10000)
+    parser.add_argument('--test_episode_start', type=int, default=0,
+                        help='0-based dataset index of first episode in this run (chunked eval / resume)')
     parser.add_argument('--test_batch_size', type=int, default=2500)
     parser.add_argument('--eval_type', type=str, default="argmax", choices=["argmax", "softmax"])
     parser.add_argument('--sample_size', type=int, default=1, help="only activate if eval_type is softmax")

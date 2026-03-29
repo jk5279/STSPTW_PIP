@@ -12,6 +12,7 @@ if __name__ == "__main__":
     parser.add_argument('--num_samples', type=int, default=10000)
     parser.add_argument('--seed', type=int, default=2025)
     parser.add_argument('--dir', type=str, default="./data")
+    parser.add_argument('--suffix', type=str, default="", help="optional filename suffix, e.g. _val")
     parser.add_argument('--no_cuda', action='store_true', default=True)
     parser.add_argument('--gpu_id', type=int, default=0)
 
@@ -34,13 +35,12 @@ if __name__ == "__main__":
     for env in envs:
         env = env(**env_params)
         if args.problem in ["ALL", "TSPTW", "TSPTW_SPIP", "TSPDL"]:
-            dataset_path = os.path.join(args.dir, env.problem, "{}{}_{}.pkl".format(env.problem.lower(), args.problem_size, args.hardness))
+            dataset_path = os.path.join(
+                args.dir,
+                env.problem,
+                "{}{}_{}{}.pkl".format(env.problem.lower(), args.problem_size, args.hardness, args.suffix),
+            )
         else:
             dataset_path = os.path.join(args.dir, env.problem, "{}{}_uniform.pkl".format(env.problem.lower(), args.problem_size))
 
         env.generate_dataset(args.num_samples, args.problem_size, dataset_path)
-        # sanity check
-        data = env.load_dataset(dataset_path, num_samples=args.num_samples, disable_print=False)
-        for i in range(len(data)):
-            print(data[i][0][:20])
-

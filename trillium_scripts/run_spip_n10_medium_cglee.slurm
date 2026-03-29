@@ -1,0 +1,63 @@
+#!/bin/bash
+#SBATCH --job-name=spip-n10-medium
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --gpus-per-node=1
+#SBATCH --cpus-per-task=24
+#SBATCH --time=24:00:00
+#SBATCH --account=rrg-cglee
+#SBATCH --output=spip_n10_medium_%j.out
+#SBATCH --error=spip_n10_medium_%j.err
+#
+# S-PIP TSPTW n=10, hardness=medium, 10k epochs x 10k train_episodes, batch 128.
+# Submit from repo root: sbatch trillium_scripts/run_spip_n10_medium_cglee.slurm
+# For stochastic: sbatch --export=ALL,STOCHASTIC=1,HARDNESS=medium trillium_scripts/run_spip_n10_medium_cglee.slurm
+
+set -e
+
+# Under SLURM the script runs from job spool dir; use submit dir so run_train_spip_n10.sh is found
+if [ -n "${SLURM_SUBMIT_DIR:-}" ]; then
+  PROJECT_DIR="${SLURM_SUBMIT_DIR}"
+  SCRIPT_PATH="${SLURM_SUBMIT_DIR}/trillium_scripts"
+else
+  SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  PROJECT_DIR="$(cd "$SCRIPT_PATH/.." && pwd)"
+fi
+ENV_DIR="${ENV_DIR:-${PROJECT_DIR}/venv}"
+
+cd "$SCRIPT_PATH"
+
+# Intentional suppression: some clusters emit warnings to stderr on module purge even on success
+module purge 2>/dev/null || true
+module load StdEnv/2023
+module load python/3.11.5
+# Wrong CUDA version can cause silent issues; run "module avail cuda" once after StdEnv to verify
+module load cuda/12.6 2>/dev/null || module load cuda 2>/dev/null || true
+
+if [ -d "$ENV_DIR" ] && [ -f "${ENV_DIR}/bin/activate" ]; then
+  source "${ENV_DIR}/bin/activate"
+else
+  echo "WARNING: No venv at $ENV_DIR; using system Python."
+fi
+
+export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
+export PYTHONPATH="${PROJECT_DIR}:${PYTHONPATH:-}"
+# Hardness for this job
+export HARDNESS="${HARDNESS:-medium}"
+export STOCHASTIC="${STOCHASTIC:-0}"
+# Work around tensorboard_logger + protobuf 4+ incompatibility
+export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+
+echo "=========================================="
+echo "S-PIP n=10 MEDIUM job — Node: $(hostname) JobId: ${SLURM_JOB_ID:-N/A}"
+echo "=========================================="
+echo "Project: $PROJECT_DIR"
+echo "Scripts: $SCRIPT_PATH"
+echo "HARDNESS: $HARDNESS"
+echo "STOCHASTIC: $STOCHASTIC"
+echo "=========================================="
+
+bash "$SCRIPT_PATH/run_train_spip_n10.sh"
+
+echo "Job finished."
+

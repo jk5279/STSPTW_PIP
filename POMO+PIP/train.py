@@ -12,7 +12,7 @@ from utils import *
 def args2dict(args):
     env_params = {"problem_size": args.problem_size, "pomo_size": args.pomo_size, "hardness": args.hardness,
                   "pomo_start": args.pomo_start, "val_dataset": args.val_dataset, "val_episodes": args.val_episodes,
-                  "k_sparse": args.k_sparse,
+                  "k_sparse": args.k_sparse, "device": args.device,
                   "delay_scale": getattr(args, "delay_scale", 0.1),
                   "reveal_delay_before_action": getattr(args, "reveal_delay_before_action", False),
                   # SPIP params (ignored by other envs)
@@ -34,7 +34,7 @@ def args2dict(args):
                     "encoder_layer_num": args.encoder_layer_num, "decoder_layer_num": args.decoder_layer_num,
                     "qkv_dim": args.qkv_dim, "head_num": args.head_num, "logit_clipping": args.logit_clipping,
                     "ff_hidden_dim": args.ff_hidden_dim, "norm": args.norm, "norm_loc": args.norm_loc,
-                    "eval_type": args.eval_type, "problem": args.problem,
+                    "eval_type": args.eval_type, "problem": args.problem, "device": args.device,
                     # PIP parameters
                     "pip_decoder": args.pip_decoder, "tw_normalize": args.tw_normalize,
                     "decision_boundary": args.decision_boundary, "detach_from_encoder": args.detach_from_encoder,
@@ -48,6 +48,7 @@ def args2dict(args):
     trainer_params = {"epochs": args.epochs, "train_episodes": args.train_episodes, "accumulation_steps": args.accumulation_steps,
                       "train_batch_size": args.train_batch_size, "validation_interval": args.validation_interval,
                       "validation_batch_size": args.validation_batch_size, "model_save_interval": args.model_save_interval,
+                      "no_opt_sol": args.no_opt_sol,
                       # reward
                       "timeout_reward": args.timeout_reward, "timeout_node_reward": args.timeout_node_reward,
                       "fsb_dist_only": args.fsb_dist_only, "fsb_reward_only": args.fsb_reward_only,
@@ -157,6 +158,7 @@ if __name__ == "__main__":
     parser.add_argument('--validation_interval', type=int, default=500)
     parser.add_argument('--validation_batch_size', type=int, default=1000)
     parser.add_argument('--val_episodes', type=int, default=10000)
+    parser.add_argument('--no_opt_sol', action='store_true', help="do not load optimal solutions during validation (skip gap computation)")
     parser.add_argument('--model_save_interval', type=int, default=50)
     # reward params
     parser.add_argument('--timeout_reward', type=bool, default=True)
@@ -230,10 +232,10 @@ if __name__ == "__main__":
     seed_everything(args.seed)
 
     if args.val_dataset is None:
-        if args.problem in ("STSPTW", "STSPTW_v2"):
-            args.val_dataset = [f"tsptw{args.problem_size}_{args.hardness}.pkl"]
+        if args.problem in ("TSPTW_SPIP", "STSPTW", "STSPTW_v2"):
+            args.val_dataset = [f"tsptw{args.problem_size}_{args.hardness}_val.pkl"]
         else:
-            args.val_dataset = [f"{args.problem.lower()}{args.problem_size}_{args.hardness}.pkl"]
+            args.val_dataset = [f"{args.problem.lower()}{args.problem_size}_{args.hardness}_val.pkl"]
 
     # set log
     run_name = f"_{args.problem}{args.problem_size}_{args.hardness}"
