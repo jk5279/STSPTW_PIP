@@ -18,13 +18,13 @@ dist/
 *.egg-info/
 
 # Project-specific
-POMO+PIP/__pycache__/
-POMO+PIP/envs/__pycache__/
-POMO+PIP/models/__pycache__/
-POMO+PIP/results/
-POMO+PIP/results_sanity/
-POMO+PIP/data/
-POMO+PIP/*.log
+src/__pycache__/
+src/envs/__pycache__/
+src/models/__pycache__/
+src/results/
+src/results_sanity/
+src/data/
+src/*.log
 
 # Large external data
 data/

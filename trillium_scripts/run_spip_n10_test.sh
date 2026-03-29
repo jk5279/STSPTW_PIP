@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # S-PIP 10-city tester: run test.py for easy, medium, hard with matching checkpoint and test set.
 # Run from repo root: bash trillium_scripts/run_spip_n10_test.sh
-# Uses batch size 512 and test_episodes 10000 (original POMO+PIP default).
+# Uses batch size 512 and test_episodes 10000 (original src default).
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-PIPO_DIR="${REPO_DIR}/POMO+PIP"
-RESULTS_BASE="${REPO_DIR}/POMO+PIP/results/spip_tsptw10_100M"
+PIPO_DIR="${REPO_DIR}/src"
+RESULTS_BASE="${REPO_DIR}/src/results/spip_tsptw10_100M"
 # Prefer val-best, then train-best, then latest epoch checkpoint (some runs only have epoch-*.pt)
 CKPT_NAMES="trained_model_val_best.pt trained_model_best.pt"
 

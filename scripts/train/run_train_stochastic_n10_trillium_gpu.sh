@@ -22,8 +22,8 @@ module load python/3.11.5
 
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 
-echo "=== Changing directory to STSPTWenv/POMO+PIP ==="
-cd "$SCRATCH/RL4Research/STSPTWenv/POMO+PIP"
+echo "=== Changing directory to STSPTWenv/src ==="
+cd "$SCRATCH/RL4Research/STSPTWenv/src"
 
 # Common training args: 10 epochs, 10k instances, batch_size=1024
 COMMON_ARGS="--problem STSPTW --problem_size 10 --pomo_size 10 \

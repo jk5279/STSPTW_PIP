@@ -14,7 +14,7 @@
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PIPO_DIR="${REPO_DIR}/POMO+PIP"
+PIPO_DIR="${REPO_DIR}/src"
 DATA_DIR="${REPO_DIR}/data"
 CHECKPOINT="${1:-}"
 

@@ -21,7 +21,7 @@ module load python/3.11.5
 
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 
-cd "$SCRATCH/RL4Research/STSPTWenv/POMO+PIP"
+cd "$SCRATCH/RL4Research/STSPTWenv/src"
 
 COMMON_ARGS="--problem TSPTW --problem_size 10 --pomo_size 10 \
   --epochs 10000 --train_episodes 10000 --train_batch_size 1024 \

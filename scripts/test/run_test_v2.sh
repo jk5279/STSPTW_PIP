@@ -14,6 +14,6 @@ module load cuda/12.6
 module load python/3.11.5
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 
-cd "$SCRATCH/RL4Research/STSPTW_PIP/POMO+PIP"
+cd "$SCRATCH/RL4Research/STSPTW_PIP/src"
 python ../scripts/test/run_test_v2.py
 echo "=== Done at $(date) ==="

@@ -4,14 +4,10 @@ import random
 import math
 import pickle
 import torch
-import torch.nn.functional as F
-import torch.nn as nn
 import numpy as np
-import matplotlib.pyplot as plt
 from tqdm import tqdm
 from multiprocessing import Pool
 from multiprocessing.dummy import Pool as ThreadPool
-from scipy.stats import ttest_rel
 import shutil
 import logging
 
@@ -60,11 +56,6 @@ class TimeEstimator:
 
         return elapsed_time_str, remain_time_str
 
-    def print_est_time(self, count, total):
-        elapsed_time_str, remain_time_str = self.get_est_string(count, total)
-
-        print("Epoch {:3d}/{:3d}: Time Est.: Elapsed[{}], Remain[{}]".format(count, total, elapsed_time_str, remain_time_str))
-
 
 def check_mem(cuda_device):
     devices_info = os.popen('"/usr/bin/nvidia-smi" --query-gpu=memory.total,memory.used --format=csv,nounits,noheader').read().strip().split("\n")
@@ -94,11 +85,9 @@ def seed_everything(seed=2023):
     torch.cuda.manual_seed_all(seed)
 
 def get_env(problem):
-    from envs import TSPDLEnv, TSPTWEnv, TSPTWEnv_SPIP, STSPTWEnv, STSPTWEnv_v2
+    from envs import TSPTWEnv_SPIP, STSPTWEnv, STSPTWEnv_v2
     all_problems = {
-        'TSPTW': TSPTWEnv.TSPTWEnv,
         'TSPTW_SPIP': TSPTWEnv_SPIP.TSPTWEnv_SPIP,
-        'TSPDL': TSPDLEnv.TSPDLEnv,
         'STSPTW': STSPTWEnv.STSPTWEnv,
         'STSPTW_v2': STSPTWEnv_v2.STSPTWEnv_v2,
     }
@@ -109,9 +98,7 @@ def get_env(problem):
 
 
 def get_opt_sol_path(dir, problem, size, hardness):
-    if problem in ["TSPTW", "TSPDL"]:
-        return os.path.join(dir, f"lkh_{problem.lower()}{size}_{hardness}.pkl")
-    elif problem == "TSPTW_SPIP":
+    if problem == "TSPTW_SPIP":
         return os.path.join(dir, f"lkh_tsptw{size}_{hardness}.pkl")
     elif problem in ("STSPTW", "STSPTW_v2"):
         return os.path.join(dir, f"lkh_tsptw{size}_{hardness}.pkl")
@@ -144,18 +131,6 @@ def num_param(model):
     print('Number of Parameters: {}'.format(nb_param))
 
 
-def check_null_hypothesis(a, b):
-    alpha_threshold = 0.05
-    t, p = ttest_rel(a, b)  # Calc p value
-    p_val = p / 2  # one-sided
-    # assert t < 0, "T-statistic should be negative"
-    print("p-value: {}".format(p_val))
-    if p_val < alpha_threshold:
-        print(">> Null hypothesis (two related or repeated samples have identical average values) is Rejected.")
-    else:
-        print(">> Null hypothesis (two related or repeated samples have identical average values) is Accepted.")
-
-
 def check_extension(filename):
     if os.path.splitext(filename)[1] != ".pkl":
         return filename + ".pkl"
@@ -178,12 +153,6 @@ def load_dataset(filename, disable_print=False):
     if not disable_print:
         print(">> Load {} data ({}) from {}".format(len(data), type(data), filename))
     return data
-
-
-def move_to(var, device):
-    if isinstance(var, dict):
-        return {k: move_to(v, device) for k, v in var.items()}
-    return var.to(device)
 
 
 class StreamToLogger(object):
@@ -234,22 +203,6 @@ def create_logger(filename, log_path=None):
     sys.stdout = sl
 
 
-def clip_grad_norms(param_groups, max_norm=math.inf):
-    """
-        Clips the norms for all param groups to max_norm and returns gradient norms before clipping
-    """
-    grad_norms = [
-        torch.nn.utils.clip_grad_norm_(
-            group['params'],
-            max_norm if max_norm > 0 else math.inf,  # Inf so no clipping but still call to calc
-            norm_type=2
-        )
-        for group in param_groups
-    ]
-    grad_norms_clipped = [min(g_norm, max_norm) for g_norm in grad_norms] if max_norm > 0 else grad_norms
-    return grad_norms, grad_norms_clipped
-
-
 def run_all_in_pool(func, directory, dataset, opts, use_multiprocessing=True, disable_tqdm=True):
     # # Test
     # res = func((directory, 'test', *dataset[0]))
@@ -283,93 +236,6 @@ def run_all_in_pool(func, directory, dataset, opts, use_multiprocessing=True, di
         "Some instances failed: {}".format(" ".join(failed))
     return results, num_cpus
 
-
-def show(x, y, label, title, xdes, ydes, path, min_y=None, max_y=None, x_scale="linear", dpi=300):
-    plt.style.use('fast')  # bmh, fivethirtyeight, Solarize_Light2
-    plt.figure(figsize=(8, 8))
-    colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple', 'tab:brown', 'tab:pink', 'tab:gray',
-              'tab:olive', 'tab:cyan', 'lightpink', 'lightgreen', 'linen', 'slategray', 'darkviolet', 'darkcyan']
-
-    assert len(x) == len(y)
-    for i in range(len(x)):
-        if i < len(label):
-            # plt.scatter(x[i], y[i], color=colors[i], s=50)  # label=label[i]
-            plt.plot(x[i], y[i], color=colors[i], label=label[i], linewidth=3)
-        else:
-            # plt.scatter(x[i], y[i], color=colors[i % len(label)])
-            plt.plot(x[i], y[i], color=colors[i % len(label)], linewidth=3)
-
-    plt.gca().get_xaxis().get_major_formatter().set_scientific(False)
-    plt.gca().get_yaxis().get_major_formatter().set_scientific(False)
-    plt.xlabel(xdes, fontsize=24)
-    plt.ylabel(ydes, fontsize=24)
-
-    if min_y and max_y:
-        plt.ylim((min_y, max_y))
-
-    plt.title(title, fontsize=24)
-    plt.xticks(fontsize=24)
-    plt.yticks(fontsize=24)
-    plt.legend(loc='upper right', fontsize=16)
-    plt.xscale(x_scale)
-    # plt.margins(x=0)
-
-    # plt.grid(True)
-    plt.savefig(path, dpi=dpi, bbox_inches='tight', pad_inches=0)
-    plt.close("all")
-
-
-def loss_edges(y_pred_edges, y_edges, edge_cw, loss_type='CE',
-               reduction='mean', gamma=2):
-    """
-    Loss function for edge predictions.
-
-    Args:
-        y_pred_edges: Predictions for edges (batch_size, num_nodes, num_nodes)
-        y_edges: Targets for edges (batch_size, num_nodes, num_nodes)
-        edge_cw: Class weights for edges loss
-
-    Returns:
-        loss_edges: Value of loss function
-
-    """
-    # Edge loss
-    if loss_type == 'CE':
-        # y = F.log_softmax(y_pred_edges, dim=3)  # B x V x V x voc_edges
-        # y = y.permute(0, 3, 1, 2)  # B x voc_edges x V x V
-        y_pred_edges = torch.log(y_pred_edges + 1e-8)
-        loss_edges = nn.NLLLoss(edge_cw)(y_pred_edges, y_edges)
-    elif loss_type == 'FL':
-        # print(gamma)
-        # y = y_pred_edges.permute(0, 3, 1, 2)  # B x voc_edges x V x V
-        loss_edges = FocalLoss(weight=edge_cw, gamma=gamma, reduction=reduction)(y_pred_edges, y_edges)
-    else:
-        raise NotImplementedError
-    return loss_edges
-
-
-class FocalLoss(nn.Module):
-    """
-    Focal Loss for edge predictions.
-    """
-
-    def __init__(self, weight=None,
-                 gamma=2., reduction='none'):
-        nn.Module.__init__(self)
-        self.weight = weight
-        self.gamma = gamma
-        self.reduction = reduction
-
-    def forward(self, input_tensor, target_tensor):
-
-        prob = input_tensor
-        log_prob = torch.log(prob + 1e-8)
-        return F.nll_loss(
-            ((1 - prob) ** self.gamma) * log_prob,
-            target_tensor,
-            weight=self.weight,
-            reduction=self.reduction
-        )
 
 def copy_all_src(dst_root):
 
@@ -443,4 +309,3 @@ def add_data_to_pkl(file_path, new_data, N):
     updated_data = tuple(torch.cat((data[i], new_data[i]), dim=0) for i in range(len(data)))
 
     write_pkl_file(file_path, updated_data)
-

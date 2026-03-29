@@ -32,7 +32,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-PIPO_DIR="${REPO_DIR}/POMO+PIP"
+PIPO_DIR="${REPO_DIR}/src"
 DATA_DIR="${REPO_DIR}/data"
 
 PROBLEM="${PROBLEM:-TSPTW_SPIP}"
@@ -78,8 +78,8 @@ case "$PROBLEM" in
     echo "ERROR: unknown PROBLEM=$PROBLEM" >&2; exit 1 ;;
 esac
 
-LOG_SUBDIR="${REPO_DIR}/POMO+PIP/results/${RUN_LABEL}"
-SAVED_SUBDIR="${REPO_DIR}/POMO+PIP/saved_models/${RUN_LABEL}"
+LOG_SUBDIR="${REPO_DIR}/src/results/${RUN_LABEL}"
+SAVED_SUBDIR="${REPO_DIR}/src/saved_models/${RUN_LABEL}"
 
 [[ ":${PYTHONPATH:-}:" != *":${REPO_DIR}:"* ]] && export PYTHONPATH="${REPO_DIR}:${PYTHONPATH:-}"
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python

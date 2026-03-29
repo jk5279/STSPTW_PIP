@@ -3,7 +3,7 @@ set -e
 
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 source /home/ramy/Desktop/Temp/PIP-constraint/venv/bin/activate
-cd /home/ramy/Desktop/Temp/STSPTWenv/POMO+PIP
+cd /home/ramy/Desktop/Temp/STSPTWenv/src
 
 # Train on stochastic TSPTW with pre-decision noise (reveal_delay_before_action)
 COMMON_ARGS="--problem STSPTW --problem_size 10 --pomo_size 10 \

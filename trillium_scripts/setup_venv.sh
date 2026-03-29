@@ -50,5 +50,5 @@ pip install ortools
 echo "=========================================="
 echo "Installation complete. Activate with:"
 echo "  source ${VENV_DIR}/bin/activate"
-echo "Then run from POMO+PIP: cd POMO+PIP && python train.py --problem TSPTW_SPIP ..."
+echo "Then run from src: cd src && python train.py --problem TSPTW_SPIP ..."
 echo "=========================================="

@@ -8,7 +8,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-PIPO_DIR="${REPO_DIR}/POMO+PIP"
+PIPO_DIR="${REPO_DIR}/src"
 
 DATA_DIR="${REPO_DIR}/data"
 # Hardness level: easy / medium / hard (default: hard)
@@ -16,8 +16,8 @@ HARDNESS="${HARDNESS:-hard}"
 # Validation file: generate_data with TSPTW_SPIP writes to TSPTW/ (env.problem = "TSPTW")
 VAL_DATA_FILE="${DATA_DIR}/TSPTW/tsptw10_${HARDNESS}_val.pkl"
 VAL_SEED="${VAL_SEED:-2027}"
-LOG_BASE="${REPO_DIR}/POMO+PIP/results"
-SAVED_MODELS_BASE="${REPO_DIR}/POMO+PIP/saved_models"
+LOG_BASE="${REPO_DIR}/src/results"
+SAVED_MODELS_BASE="${REPO_DIR}/src/saved_models"
 
 # Stochastic mode: env first, then argv overrides (so --stochastic wins over STOCHASTIC=0)
 STOCHASTIC="${STOCHASTIC:-0}"

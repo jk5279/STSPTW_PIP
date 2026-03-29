@@ -14,7 +14,7 @@ This document is **self-contained**: it explains the key logic of S-PIP (Stochas
 In this repo:
 
 - **Problem type:** `TSPTW_SPIP`
-- **Environment class:** `TSPTWEnv_SPIP` in [POMO+PIP/envs/TSPTWEnv_SPIP.py](POMO+PIP/envs/TSPTWEnv_SPIP.py)
+- **Environment class:** `TSPTWEnv_SPIP` in [src/envs/TSPTWEnv_SPIP.py](src/envs/TSPTWEnv_SPIP.py)
 
 The base PIP method is from the NeurIPS 2024 paper *Learning to Handle Complex Constraints for Vehicle Routing Problems*; this fork adds the stochastic transition and path-level buffer logic above.
 
@@ -72,7 +72,7 @@ function Step(selected):
 
 ### Code
 
-- **Noise sampling:** [POMO+PIP/envs/TSPTWEnv_SPIP.py](POMO+PIP/envs/TSPTWEnv_SPIP.py) — `_sample_bounded_noise(distance)` (lines 129–145). It returns ξ with the same shape/device/dtype as `distance`.
+- **Noise sampling:** [src/envs/TSPTWEnv_SPIP.py](src/envs/TSPTWEnv_SPIP.py) — `_sample_bounded_noise(distance)` (lines 129–145). It returns ξ with the same shape/device/dtype as `distance`.
 - **Application in step:** In `step()`, after computing `new_length` (Euclidean segment length), if `spip_stochastic_transition` is True and noise is enabled, the env samples ξ via `_sample_bounded_noise(new_length)`, sets `realized_length = (d_ij + ξ).clamp(min=1e-8)`, and uses that for `new_length` (lines 348–353). That value is then used to update `self.length` and `travel_time_for_step`, and accumulated in `cumulative_realized_travel_time`.
 
 ### Reward
@@ -155,7 +155,7 @@ function SetDepotTWEnd(node_xy, tw_end):
 
 ### Code
 
-All of the above is in [POMO+PIP/envs/TSPTWEnv_SPIP.py](POMO+PIP/envs/TSPTWEnv_SPIP.py), method `_calculate_PIP_mask`:
+All of the above is in [src/envs/TSPTWEnv_SPIP.py](src/envs/TSPTWEnv_SPIP.py), method `_calculate_PIP_mask`:
 
 - Path buffer and first-step check: lines 461–471 (`delta_path`, `t_hat_1_j`, `out_of_tw_local`).
 - **pip_step=0:** one-step only; nodes failing the first-step buffered check get `simulated_ninf_flag = -inf` (lines 473–477).
@@ -178,11 +178,11 @@ All of the above is in [POMO+PIP/envs/TSPTWEnv_SPIP.py](POMO+PIP/envs/TSPTWEnv_S
 
 ### Env registration
 
-[POMO+PIP/utils.py](POMO+PIP/utils.py): `get_env(problem)` maps `'TSPTW_SPIP'` → `TSPTWEnv_SPIP.TSPTWEnv_SPIP`. Train and test code use this to instantiate the correct env class.
+[src/utils.py](src/utils.py): `get_env(problem)` maps `'TSPTW_SPIP'` → `TSPTWEnv_SPIP.TSPTWEnv_SPIP`. Train and test code use this to instantiate the correct env class.
 
 ### CLI and env_params
 
-[POMO+PIP/train.py](POMO+PIP/train.py):
+[src/train.py](src/train.py):
 
 - Problem: `--problem TSPTW_SPIP`.
 - S-PIP flags: `--spip_stochastic_transition`, `--spip_noise_dist`, `--spip_noise_bound`, `--spip_sigma0`, `--spip_epsilon`.
@@ -195,11 +195,11 @@ When `--val_dataset` is not set, train sets it for TSPTW_SPIP to `[f"tsptw{probl
 
 ### Trainer
 
-[POMO+PIP/Trainer.py](POMO+PIP/Trainer.py): Uses `problem in ("TSPTW", "TSPTW_SPIP")` when passing `tw_end` into the model and for validation/grid scaling. The env is created via the same `get_env(args.problem)` pattern (e.g. in validation and in Tester).
+[src/Trainer.py](src/Trainer.py): Uses `problem in ("TSPTW", "TSPTW_SPIP")` when passing `tw_end` into the model and for validation/grid scaling. The env is created via the same `get_env(args.problem)` pattern (e.g. in validation and in Tester).
 
 ### Model
 
-[POMO+PIP/models/SINGLEModel.py](POMO+PIP/models/SINGLEModel.py): `TSPTW_PROBLEMS = {"TSPTW", "TSPTW_SPIP"}`; the model treats both the same (e.g. for `tw_end` and masking). There is no separate S-PIP branch in the model; only the env implements S-PIP logic.
+[src/models/SINGLEModel.py](src/models/SINGLEModel.py): `TSPTW_PROBLEMS = {"TSPTW", "TSPTW_SPIP"}`; the model treats both the same (e.g. for `tw_end` and masking). There is no separate S-PIP branch in the model; only the env implements S-PIP logic.
 
 ---
 
@@ -214,4 +214,4 @@ When `--val_dataset` is not set, train sets it for TSPTW_SPIP to `[f"tsptw{probl
 | `spip_epsilon` | 0.05 | Env init (`z_factor`) | Confidence for z = Φ⁻¹(1−ε) in PIP mask buffer. |
 | `pip_step` | 1 | `_calculate_PIP_mask` | 0: one-step buffered; 1: two-step with δ_increment; 2: deterministic no buffer. |
 
-All of these are set from [POMO+PIP/train.py](POMO+PIP/train.py) (and optionally [POMO+PIP/test.py](POMO+PIP/test.py)) and passed via `env_params` into `TSPTWEnv_SPIP.__init__`.
+All of these are set from [src/train.py](src/train.py) (and optionally [src/test.py](src/test.py)) and passed via `env_params` into `TSPTWEnv_SPIP.__init__`.

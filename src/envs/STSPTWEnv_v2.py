@@ -187,8 +187,8 @@ class STSPTWEnv_v2:
 
     def get_random_problems(self, batch_size, problem_size,
                             coord_factor=100, max_tw_size=100):
-        from . import TSPTWEnv
-        temp = TSPTWEnv.TSPTWEnv(
+        from . import TSPTWEnv_SPIP
+        temp = TSPTWEnv_SPIP.TSPTWEnv_SPIP(
             problem_size=problem_size,
             pomo_size=self.pomo_size,
             hardness=self.hardness,
@@ -202,7 +202,7 @@ class STSPTWEnv_v2:
 
     def load_problems(self, batch_size, problems=None,
                       aug_factor=1, normalize=True):
-        from . import TSPTWEnv
+        from . import TSPTWEnv_SPIP
 
         if problems is not None:
             node_xy, service_time, tw_start, tw_end = problems
@@ -226,7 +226,7 @@ class STSPTWEnv_v2:
         if aug_factor > 1:
             if aug_factor == 8:
                 self.batch_size = self.batch_size * 8
-                node_xy = TSPTWEnv.TSPTWEnv.augment_xy_data_by_8_fold(
+                node_xy = TSPTWEnv_SPIP.TSPTWEnv_SPIP.augment_xy_data_by_8_fold(
                     dg, node_xy)
                 service_time = service_time.repeat(8, 1)
                 tw_start = tw_start.repeat(8, 1)

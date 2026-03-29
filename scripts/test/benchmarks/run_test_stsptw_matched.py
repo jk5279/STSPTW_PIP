@@ -2,7 +2,7 @@
 """
 Test 90 STSPTW-trained models each on their matching STSPTW env (same hardness, same delay_weight).
 Total: 90 experiments. Results written to CSV.
-Run from STSPTWenv/, or set POMO_PIP_DIR to POMO+PIP directory.
+Run from STSPTWenv/, or set POMO_PIP_DIR to src directory.
 """
 import os
 import re
@@ -11,8 +11,8 @@ import sys
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-POMO_PIP_DIR = Path(os.environ.get("POMO_PIP_DIR", SCRIPT_DIR.parent.parent.parent / "POMO+PIP")).resolve()
-assert POMO_PIP_DIR.is_dir(), f"POMO+PIP dir not found: {POMO_PIP_DIR}"
+POMO_PIP_DIR = Path(os.environ.get("POMO_PIP_DIR", SCRIPT_DIR.parent.parent.parent / "src")).resolve()
+assert POMO_PIP_DIR.is_dir(), f"src dir not found: {POMO_PIP_DIR}"
 
 # 90 configs: (hardness, model_type, delay_weight); delay_weight 0.1 .. 1.0 step 0.1
 HARDNESSES = ("easy", "medium", "hard")
@@ -135,7 +135,7 @@ def main():
                 cmd = [sys.executable, "test.py", "--problem", "STSPTW", "--problem_size", "10", "--hardness", h, "--checkpoint", str(ckpt), "--reveal_delay_before_action", "--delay_scale", f"{dw:.1f}", "--no_opt_sol", "--aug_factor", "8"]
                 if mt == "POMO_STAR_PIP":
                     cmd += ["--generate_PI_mask", "--pip_step", "1"]
-                print("Example cmd (from POMO+PIP):", " ".join(cmd))
+                print("Example cmd (from src):", " ".join(cmd))
             except FileNotFoundError:
                 pass
         return

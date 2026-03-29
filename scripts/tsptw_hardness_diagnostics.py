@@ -16,8 +16,8 @@ REPO_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if REPO_DIR not in sys.path:
     sys.path.insert(0, REPO_DIR)
 
-# Run from POMO+PIP so env imports work
-PIPO = os.path.join(REPO_DIR, "POMO+PIP")
+# Run from src so env imports work
+PIPO = os.path.join(REPO_DIR, "src")
 os.chdir(PIPO)
 sys.path.insert(0, PIPO)
 
