@@ -10,8 +10,8 @@ Supported distributions:
 
 Design principles:
   - E[t_ij] = d_ij  (mean-preserving perturbation)
-  - out_of_tw uses deterministic distances (monotonic accumulation is correct)
-  - PIP mask uses deterministic lookahead (baseline)
+  - out_of_tw uses stochastic travel times (consistent with time progression)
+  - PIP mask uses stochastic lookahead
   - Reward = negative geometric tour length (same objective as TSPTWEnv)
   - CV = 0 recovers exact TSPTWEnv behavior (sanity check)
 """
@@ -86,6 +86,12 @@ class STSPTWEnv_v2:
         self.reveal_delay_before_action = env_params.get('reveal_delay_before_action', False)
         self.pre_sampled_pairwise_travel = None
         self.pre_sampled_travel_matrix = None
+
+        # Fixed noise multipliers for reproducible stochastic travel across models.
+        # Shape: (batch, N, N).  travel = multiplier * distance / speed.
+        # Pre-sampled at reset() with a fixed seed so every model sees the same noise.
+        self.test_noise_seed = env_params.get('test_noise_seed', None)
+        self.noise_multipliers = None
 
         # Problem data (set at load_problems)
         self.batch_size = None
@@ -181,6 +187,103 @@ class STSPTWEnv_v2:
         travel = torch.where(distance < 1e-8, torch.zeros_like(travel), travel)
         return travel / self.speed
 
+    def _sample_noise_multipliers(self, shape, seed=None):
+        """
+        Sample distance-independent noise multipliers with E[m] = 1.
+
+        For gamma:  m ~ Gamma(k, k),  E[m] = 1, CV = 1/sqrt(k)
+        For two_point:  m = (1-delta) w.p. p, (1+epsilon) w.p. (1-p)
+
+        Args:
+            shape: desired tensor shape
+            seed: if not None, use this seed (restoring RNG state after)
+        Returns:
+            multipliers tensor with the given shape
+        """
+        if seed is not None:
+            rng_state = torch.cuda.get_rng_state() if self.device.type == 'cuda' else torch.get_rng_state()
+
+        if seed is not None:
+            if self.device.type == 'cuda':
+                torch.cuda.manual_seed(seed)
+            else:
+                torch.manual_seed(seed)
+
+        if self.noise_type == 'gamma':
+            k = 1.0 / (self.cv ** 2)
+            concentration = torch.full(shape, k, device=self.device)
+            rate = torch.full(shape, k, device=self.device)
+            multipliers = torch.distributions.Gamma(concentration, rate).sample()
+        elif self.noise_type == 'two_point':
+            delta = self.two_point_delta
+            p = self.two_point_p
+            epsilon = p * delta / (1 - p)
+            coin = torch.rand(shape, device=self.device)
+            multipliers = torch.where(
+                coin < p,
+                torch.full(shape, 1 - delta, device=self.device),
+                torch.full(shape, 1 + epsilon, device=self.device),
+            )
+        else:
+            raise ValueError(f"Unknown noise_type: {self.noise_type}")
+
+        if seed is not None:
+            if self.device.type == 'cuda':
+                torch.cuda.set_rng_state(rng_state)
+            else:
+                torch.set_rng_state(rng_state)
+
+        return multipliers
+
+    def _get_fixed_travel(self, from_node, to_node, distance):
+        """
+        Look up pre-sampled noise multiplier for (from_node, to_node) and
+        compute travel = multiplier * distance / speed.
+
+        Args:
+            from_node: (batch, pomo) or None (depot = node 0)
+            to_node: (batch, pomo)
+            distance: (batch, pomo) deterministic distances
+        Returns:
+            travel time (batch, pomo)
+        """
+        # Map augmented batch index back to original instance index
+        orig_idx = torch.arange(self.batch_size, device=self.device) % self.original_batch_size
+        if from_node is None:
+            from_n = torch.zeros(self.batch_size, self.pomo_size,
+                                 dtype=torch.long, device=self.device)
+        else:
+            from_n = from_node
+
+        m = self.noise_multipliers[
+            orig_idx[:, None].expand_as(to_node), from_n, to_node]
+        travel = m * distance / self.speed
+        return travel
+
+    def _get_fixed_pairwise_travel(self, from_node, pairwise_dist):
+        """
+        Look up pre-sampled multipliers for all destination nodes.
+
+        Args:
+            from_node: (batch, pomo) or None (depot)
+            pairwise_dist: (batch, pomo, N)
+        Returns:
+            travel times (batch, pomo, N)
+        """
+        orig_idx = torch.arange(self.batch_size, device=self.device) % self.original_batch_size
+        if from_node is None:
+            from_n = torch.zeros(self.batch_size, self.pomo_size,
+                                 dtype=torch.long, device=self.device)
+        else:
+            from_n = from_node
+
+        m = self.noise_multipliers[
+            orig_idx[:, None, None].expand(-1, self.pomo_size, self.problem_size),
+            from_n[:, :, None].expand(-1, -1, self.problem_size),
+            torch.arange(self.problem_size, device=self.device)[None, None, :].expand(
+                self.batch_size, self.pomo_size, -1)]
+        return m * pairwise_dist / self.speed
+
     # =================================================================
     #  Problem loading (delegates to TSPTWEnv backbone)
     # =================================================================
@@ -221,7 +324,9 @@ class STSPTWEnv_v2:
                 + tw_end[:, 1:]
             ).max(dim=-1)[0]
 
+        self.original_batch_size = node_xy.size(0)
         self.batch_size = node_xy.size(0)
+        self.aug_factor = aug_factor
 
         if aug_factor > 1:
             if aug_factor == 8:
@@ -233,23 +338,6 @@ class STSPTWEnv_v2:
                 tw_end = tw_end.repeat(8, 1)
             else:
                 raise NotImplementedError
-
-        # Pre-sample fixed N×N travel matrix when test_noise_seed is set.
-        # Disabled during training (no seed) and when aug_factor>1.
-        test_noise_seed = self.env_params.get('test_noise_seed', None)
-        if test_noise_seed is not None and aug_factor == 1:
-            node_xy_np = node_xy.cpu().numpy()
-            diff = node_xy_np[:, :, None, :] - node_xy_np[:, None, :, :]
-            distances = np.sqrt((diff ** 2).sum(-1)).astype(np.float32)
-            rng = np.random.default_rng(test_noise_seed)
-            matrices = np.stack([
-                self._sample_travel_time_np(distances[i], rng)
-                for i in range(self.batch_size)
-            ])
-            self.pre_sampled_travel_matrix = torch.tensor(
-                matrices, dtype=torch.float32, device=self.device)
-        else:
-            self.pre_sampled_travel_matrix = None
 
         self.node_xy = node_xy
         self.node_service_time = service_time
@@ -366,6 +454,15 @@ class STSPTWEnv_v2:
             (self.batch_size, self.pomo_size, 0), dtype=torch.bool
         ).to(self.device)
 
+        # Pre-sample fixed noise multipliers for reproducible travel times.
+        # Shape: (original_batch, N, N) — shared across augmentations.
+        if self.test_noise_seed is not None and self.cv > 0:
+            N = self.problem_size
+            self.noise_multipliers = self._sample_noise_multipliers(
+                (self.original_batch_size, N, N), seed=self.test_noise_seed)
+        else:
+            self.noise_multipliers = None
+
         self.visited_ninf_flag = torch.zeros(
             size=(self.batch_size, self.pomo_size, self.problem_size)
         ).to(self.device)
@@ -421,7 +518,20 @@ class STSPTWEnv_v2:
                     b_idx = self.BATCH_IDX  # (batch, pomo)
                     self.pre_sampled_pairwise_travel = mat[
                         b_idx, self.current_node, :]  # (batch, pomo, N)
+            elif self.noise_multipliers is not None:
+                # Use fixed multipliers for reproducible travel
+                current_coord = self.current_coord
+                if current_coord.size(1) == 1 and self.pomo_size > 1:
+                    current_coord = current_coord.expand(-1, self.pomo_size, -1)
+                pairwise_dist = (
+                    current_coord[:, :, None, :]
+                    - self.node_xy[:, None, :, :].expand(
+                        -1, self.pomo_size, -1, -1)
+                ).norm(p=2, dim=-1)
+                self.pre_sampled_pairwise_travel = self._get_fixed_pairwise_travel(
+                    self.current_node, pairwise_dist)
             else:
+                # Fall back to online sampling (training)
                 current_coord = self.current_coord
                 if current_coord.size(1) == 1 and self.pomo_size > 1:
                     current_coord = current_coord.expand(-1, self.pomo_size, -1)
@@ -443,6 +553,7 @@ class STSPTWEnv_v2:
         # ---- Dynamic-1: book-keeping (identical to TSPTWEnv) ----
         selected = selected.clamp(0, self.problem_size - 1)
         self.selected_count += 1
+        prev_node = self.current_node  # None at step 0 (depot)
         self.current_node = selected
         self.selected_node_list = torch.cat(
             (self.selected_node_list, self.current_node[:, :, None]), dim=2)
@@ -463,6 +574,9 @@ class STSPTWEnv_v2:
                 self.batch_size * self.pomo_size, device=self.device)
             stochastic_travel = flat_travel[
                 flat_indices, flat_selected].view(self.batch_size, self.pomo_size)
+        elif self.noise_multipliers is not None:
+            stochastic_travel = self._get_fixed_travel(
+                prev_node, selected, new_length)
         else:
             stochastic_travel = self._sample_travel_time(new_length)
 
@@ -486,19 +600,17 @@ class STSPTWEnv_v2:
         self.timestamps = torch.cat(
             (self.timestamps, self.current_time[:, :, None]), dim=2)
 
-        # ---- out_of_tw: deterministic distances, stochastic current_time ----
-        # Monotonic accumulation is correct here because current_time only
-        # increases and deterministic distances are fixed.  A node that becomes
-        # unreachable stays unreachable.
+        # ---- out_of_tw: stochastic travel, stochastic current_time ----
         round_error_epsilon = 0.00001
-        det_pairwise_dist = (
+        pairwise_dist = (
             self.current_coord[:, :, None, :]
             - self.node_xy[:, None, :, :].expand(
                 -1, self.pomo_size, -1, -1)
         ).norm(p=2, dim=-1)
+        pairwise_travel = self._sample_travel_time(pairwise_dist)
 
         next_arrival_time = torch.max(
-            self.current_time[:, :, None] + det_pairwise_dist / self.speed,
+            self.current_time[:, :, None] + pairwise_travel,
             self.node_tw_start[:, None, :].expand(-1, self.pomo_size, -1))
         out_of_tw = (
             next_arrival_time
@@ -509,7 +621,7 @@ class STSPTWEnv_v2:
         # ---- PIP mask (stochastic Monte Carlo version) ----
         if generate_PI_mask and self.selected_count < self.problem_size - 1:
             self._calculate_PIP_mask(
-                pip_step, selected, next_arrival_time, det_pairwise_dist)
+                pip_step, selected, next_arrival_time, pairwise_dist)
 
         # ---- Timeout ----
         total_timeout = (
@@ -538,10 +650,22 @@ class STSPTWEnv_v2:
                 all_infsb, self.visited_ninf_flag, self.ninf_mask)
 
         # ---- Infeasibility detection ----
+        # (a) Check if the agent actually arrived late at the selected node
+        arrival_at_selected = (
+            self.current_time
+            - self.node_service_time[
+                torch.arange(self.batch_size)[:, None], selected])
+        actually_late = (
+            arrival_at_selected
+            > self.node_tw_end[
+                torch.arange(self.batch_size)[:, None], selected]
+            + round_error_epsilon)
+        # (b) Check if any unvisited node became unreachable
         newly_infeasible = (
             ((self.visited_ninf_flag == 0).int()
              + (self.out_of_tw_ninf_flag == float('-inf')).int()) == 2
         ).any(dim=2)
+        newly_infeasible = newly_infeasible | actually_late
         self.infeasible = self.infeasible + newly_infeasible
         self.infeasibility_list = torch.cat(
             (self.infeasibility_list, self.infeasible[:, :, None]), dim=2)
